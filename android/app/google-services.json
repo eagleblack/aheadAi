@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "792489197313",
+    "project_id": "ahead-9fb4c",
+    "storage_bucket": "ahead-9fb4c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:792489197313:android:7e3c68abc69f341dd96500",
+        "android_client_info": {
+          "package_name": "com.aheadai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCCD3dm-qKOHi42u8LVWY-w68r3FYxLVmo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
