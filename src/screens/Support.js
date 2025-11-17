@@ -10,7 +10,7 @@ import {
   Text as RNText,
 } from "react-native";
 import { TextInput, Button, Text, Snackbar, ActivityIndicator } from "react-native-paper";
-import firestore from "@react-native-firebase/firestore";
+import firestore,{FieldValue} from "@react-native-firebase/firestore";
 import auth from "@react-native-firebase/auth";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useTheme } from "../context/ThemeContext";
@@ -42,7 +42,7 @@ const SupportScreen = () => {
         title,
         description,
         status: "open",
-        createdAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       });
 
       setSnackbar({ visible: true, message: "Support request submitted successfully!" });

@@ -1,6 +1,6 @@
 // commentsSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import firestore from "@react-native-firebase/firestore";
+import firestore,{FieldValue,FieldPath} from "@react-native-firebase/firestore";
 import auth from "@react-native-firebase/auth";
 
 const COMMENTS_LIMIT = 10;
@@ -84,15 +84,15 @@ export const addComment = createAsyncThunk(
       const newComment = {
         userId: user.uid,
         text,
-        createdAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       };
 
       // 🧩 Transaction: add comment + update post stats atomically
       await firestore().runTransaction(async (transaction) => {       
         transaction.set(commentRef, newComment);
         transaction.update(postRef, {
-          postIndex: firestore.FieldValue.increment(5),
-          totalComments: firestore.FieldValue.increment(1),
+          postIndex: FieldValue.increment(5),
+          totalComments: FieldValue.increment(1),
         });
       });
 
@@ -106,7 +106,7 @@ export const addComment = createAsyncThunk(
           notificationText: `New comment added to your post`,
           comment: text,
           postId,
-          createdOn: firestore.FieldValue.serverTimestamp(),
+          createdOn: FieldValue.serverTimestamp(),
           read: false,
           status: "UNREAD",
         };
@@ -156,8 +156,8 @@ export const deleteComment = createAsyncThunk(
       await firestore().runTransaction(async (transaction) => {
         transaction.delete(commentRef);
         transaction.update(postRef, {
-          totalComments: firestore.FieldValue.increment(-1),
-          postIndex: firestore.FieldValue.increment(-5),
+          totalComments: FieldValue.increment(-1),
+          postIndex: FieldValue.increment(-5),
         });
       });
 

@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
-  ActivityIndicator,
+  ActivityIndicator,    
   Linking,
 } from "react-native";
 import { FAB } from "react-native-paper";
@@ -47,36 +47,29 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const BOTTOM_TAB_HEIGHT = 60;
 const PAGE_HEIGHT = SCREEN_HEIGHT - BOTTOM_TAB_HEIGHT;
 
-const HomeScreenUser = ({  }) => {
-  const navigation=useNavigation()
+const HEADER_MAX = 60;
+const TABS_HEIGHT = 50;
+
+const HomeScreenUser = () => {
+  const navigation = useNavigation();
   const { colors } = useTheme();
   const dispatch = useDispatch();
 
-const scrollY = useRef(new Animated.Value(0)).current;
-const headerHeight = scrollY.interpolate({
-  inputRange: [0, 60], // adjust threshold
-  outputRange: [60, 0],
-  extrapolate: "clamp",
-});  
+  const scrollY = useRef(new Animated.Value(0)).current;
 
-const tabsOpacity = scrollY.interpolate({
-  inputRange: [0, 60],
-  outputRange: [0, 1],  
-  extrapolate: "clamp",
-});
-const headerTranslate = scrollY.interpolate({
-  inputRange: [0, 60],
-  outputRange: [0, -60], // move up as header collapses
-  extrapolate: "clamp",
-});
-const [tabsVisible, setTabsVisible] = useState(false);
-
-useEffect(() => {
-  const listener = scrollY.addListener(({ value }) => {
-    setTabsVisible(value > 60); // same threshold as your headerHeight/tabsOpacity
+  // HEADER COLLAPSE ANIMATION
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, HEADER_MAX],
+    outputRange: [0, -HEADER_MAX],
+    extrapolate: "clamp",
   });
-  return () => scrollY.removeListener(listener);
-}, []);
+
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, HEADER_MAX / 2, HEADER_MAX],
+    outputRange: [1, 0.5, 0],
+    extrapolate: "clamp",
+  });
+
   const feed = useSelector((state) => state.feed);
   const { news, loadingInitial: isFetchingNews, hasMore } = useSelector(
     (state) => state.news
@@ -85,7 +78,6 @@ useEffect(() => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("Post");
-  const [expanded, setExpanded] = useState({});
 
   const recentListRef = useRef(null);
   const trendingListRef = useRef(null);
@@ -94,16 +86,19 @@ useEffect(() => {
   const recentOffsetRef = useRef(0);
   const trendingOffsetRef = useRef(0);
   const newsOffsetRef = useRef(0);
-
+const scrollPositions = useRef({
+  Post: 0,
+  Trending: 0,
+  News: 0,
+});
   // Initial fetch
   useEffect(() => {
     dispatch(fetchRecentPosts());
     dispatch(fetchTrendingPosts());
     dispatch(fetchInitialNews());
     return () => dispatch(clearNews());
-  }, [dispatch]);
+  }, []);
 
-  // Refresh control
   const onRefresh = async () => {
     setRefreshing(true);
     if (activeTab === "News") await dispatch(refreshNews());
@@ -113,23 +108,52 @@ useEffect(() => {
   };
 
   // Pagination
-  const loadMorePosts = useCallback(() => {
-    const current = activeTab === "Trending" ? feed.trending : feed.recent;
-    if (!current.isFetching && !current.isLastPage) {
+  const loadMorePosts = () => {
+    const data = activeTab === "Trending" ? feed.trending : feed.recent;
+    if (!data.isFetching && !data.isLastPage) {
       dispatch(
         activeTab === "Trending"
           ? fetchTrendingPosts({ loadMore: true })
           : fetchRecentPosts({ loadMore: true })
       );
     }
-  }, [activeTab, feed, dispatch]);
+  };
+useEffect(() => {
+  const targetOffset = scrollPositions.current[activeTab] || 0;
 
+  // Scroll list to saved position
+  if (activeTab === "Post" && recentListRef.current) {
+    recentListRef.current.scrollToOffset({
+      offset: targetOffset,
+      animated: false,
+    });
+  }
+
+  if (activeTab === "Trending" && trendingListRef.current) {
+    trendingListRef.current.scrollToOffset({
+      offset: targetOffset,
+      animated: false,
+    });
+  }
+
+  if (activeTab === "News" && newsListRef.current) { 
+    newsListRef.current.scrollToOffset({
+      offset: targetOffset,
+      animated: false,
+    });
+  }
+
+  // Reset scrollY so header reappears correctly
+  scrollY.setValue(targetOffset);
+
+}, [activeTab]);
   const loadMoreNews = () => {
     if (!isFetchingNews && hasMore) dispatch(fetchMoreNews());
   };
 
-  // Like / Bookmark handlers
-  const handleLike = useCallback(
+  const renderNews = ({ item }) => <NewsCard item={item} colors={colors} />;
+  const [expanded, setExpanded] = useState({});
+const handleLike = useCallback(
     (post) => {
       dispatch(toggleLikeOptimistic({ feedType: "recent", postId: post.id }));
       dispatch(toggleLikeOptimistic({ feedType: "trending", postId: post.id }));
@@ -146,42 +170,7 @@ useEffect(() => {
     },
     [dispatch]
   );
-
-  // Track scroll offset
-  const onRecentScroll = (e) =>
-    (recentOffsetRef.current = e.nativeEvent.contentOffset.y);
-  const onTrendingScroll = (e) =>
-    (trendingOffsetRef.current = e.nativeEvent.contentOffset.y);
-  const onNewsScroll = (e) =>
-    (newsOffsetRef.current = e.nativeEvent.contentOffset.y);
-
-  // Restore scroll position with delay
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      let ref, offset;
-      if (activeTab === "Post") {
-        ref = recentListRef;
-        offset = recentOffsetRef.current;
-      } else if (activeTab === "Trending") {
-        ref = trendingListRef;
-        offset = trendingOffsetRef.current;
-      } else {
-        ref = newsListRef;
-        offset = newsOffsetRef.current;
-      }
-
-      if (ref?.current) {
-        try {
-          ref.current.scrollToOffset({ offset, animated: false });
-        } catch {}
-      }
-    }, 60);
-
-    return () => clearTimeout(timeout);
-  }, [activeTab]);
-
-  // Render post
-  const renderPost = useCallback(
+const renderPost = useCallback(
     ({ item }) => {
       const isExpanded = expanded[item.id] || false;
       const contentPreview =
@@ -190,352 +179,397 @@ useEffect(() => {
           : item.content;
 
       return (
-        <View style={[styles.postCard, { backgroundColor: colors.surface }]}>
-          {/* Header */}
-          <TouchableOpacity
-            style={styles.postHeader}
-            onPress={() =>
-              item?.user.uid === userData.uid
-                ? navigation.navigate("Profile")
-                : navigation.navigate("OtherProfile", { uid: item?.user.uid })
-            }
-          >
-            <View style={styles.userInfo}>
-              <Image source={{ uri: item.user.avatar }} style={styles.avatar} />
-              <View style={styles.userDetails}>
-                <Text style={[styles.userName, { color: colors.text }]}>
-                  {item.user.name}
-                </Text>
-                <Text
-                  style={[styles.userTagline, { color: colors.textSecondary }]}
-                >
-                  {item.user?.tagline ?? "New on Ahead"}
-                </Text>
-              </View>
-            </View>
-            <Text style={[styles.timeAgo, { color: colors.textSecondary }]}>
-              {timeAgo(item.createdAt)}
-            </Text>
-          </TouchableOpacity>
+       <View style={[styles.tweetContainer, { backgroundColor: colors.surface }]}>
+  
+  {/* Left Thread Line */}
+   <TouchableOpacity
+      style={styles.threadColumn}
+      onPress={() =>
+        item?.user.uid === userData.uid
+          ? navigation.navigate("Profile")
+          : navigation.navigate("OtherProfile", { uid: item?.user.uid })
+      }
+    >
+    <Image source={{ uri: item.user.avatar }} style={styles.tweetAvatar} />
+    <View style={styles.threadLine} />
+  </TouchableOpacity>
 
-          {/* Content */}
-          {item.content && (
-            <Hyperlink
-              linkStyle={{ color: colors.link, textDecorationLine: "underline" }}
-              onPress={(url) => Linking.openURL(url)}
-            >
-              <Text style={[styles.postContent, { color: colors.text }]}>
-                {contentPreview}
-              </Text>
-            </Hyperlink>
-          )}
+  {/* Right Content */}
+  <View style={styles.tweetContentSection}>
 
-          {item.content?.length > 120 && (
-            <TouchableOpacity
-              onPress={() =>
-                setExpanded((prev) => ({ ...prev, [item.id]: !isExpanded }))
-              }
-            >
-              <Text style={styles.readMoreText}>
-                {isExpanded ? "Read less" : "Read more"}
-              </Text>
-            </TouchableOpacity>
-          )}
+    {/* Header */}
+    <TouchableOpacity
+      style={styles.tweetHeader}
+      onPress={() =>
+        item?.user.uid === userData.uid
+          ? navigation.navigate("Profile")
+          : navigation.navigate("OtherProfile", { uid: item?.user.uid })
+      }
+    >
+      <Text style={[styles.tweetName, { color: colors.text }]}>
+        {item.user.name}
+      </Text>
+      <Text style={[styles.tweetTime, { color: colors.textSecondary }]}>
+        · {timeAgo(item.createdAt)}
+      </Text>
+    </TouchableOpacity>
 
-          {item.imageUrl && (
-            <FullWidthImage uri={item.imageUrl} resizeMode="contain" />
-          )}
+    {/* Tagline */}
+    <Text
+      style={[styles.tweetTagline, { color: colors.textSecondary }]}
+    >
+      {item.user?.tagline ?? "New on Ahead"}
+    </Text>
 
-          {/* Actions */}
-          <View style={styles.statsRow}>
-            <View style={styles.actionsRow}>
-              {/* Like */}
-              <TouchableOpacity
-                style={styles.actionItem}
-                onPress={() => handleLike(item)}
-              >
-                <Icon
-                  name={item.likedByCurrentUser ? "favorite" : "favorite-border"}
-                  size={22}
-                  color={
-                    item.likedByCurrentUser
-                      ? colors.primary
-                      : colors.textSecondary
-                  }
-                
-                />
-                <Text style={[styles.statsText, { color: colors.text,fontWeight:800 }]}>
-                  {item.totalLikes || 0}
-                </Text>
-              </TouchableOpacity>
+    {/* Content + Links */}
+    {item.content && (
+      <Hyperlink
+        linkStyle={{ color: colors.link, textDecorationLine: "underline" }}
+        onPress={(url) => Linking.openURL(url)}
+      >
+        <Text style={[styles.tweetText, { color: colors.text }]}>
+          {contentPreview}
+        </Text>
+      </Hyperlink>
+    )}
 
-              {/* Comment */}
-              <TouchableOpacity
-                style={styles.actionItem}
-                onPress={() =>
-                  navigation.navigate("Comments", {
-                    postId: item.id,
-                    creatorId: item.userId,
-                  })
-                }
-              >
-                <Icon
-                  name="chat-bubble-outline"
-                  size={22}
-                  color={colors.textSecondary}
-                />
-                <Text style={[styles.statsText, { color: colors.text,fontWeight:800 }]}>
-                  {item.totalComments || 0}
-                </Text>
-              </TouchableOpacity>
+    {/* Read more */}
+    {item.content?.length > 120 && (
+      <TouchableOpacity
+        onPress={() =>
+          setExpanded((prev) => ({ ...prev, [item.id]: !isExpanded }))
+        }
+      >
+        <Text style={[styles.readMore, { color: colors.primary }]}>
+          {isExpanded ? "Read less" : "Read more"}
+        </Text>
+      </TouchableOpacity>
+    )}
 
-              <Icon
-                name="share"
-                size={22}
-                color={colors.textSecondary}
-                style={{ marginLeft: 12 }}
-              />
-            </View>
+    {/* Image */}
+    {item.imageUrl && (
+      <FullWidthImage uri={item.imageUrl} resizeMode="contain" />
+    )}
 
-            {/* Bookmark */}
-            <TouchableOpacity onPress={() => handleBookmark(item)}>
-              <Icon
-                name={
-                  item.bookmarkedByCurrentUser ? "bookmark" : "bookmark-border"
-                }
-                size={22}
-                color={
-                  item.bookmarkedByCurrentUser
-                    ? colors.primary
-                    : colors.textSecondary
-                }
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
+    {/* Actions */}
+    <View style={styles.tweetActionsRow}>
+      {/* Like */}
+      <TouchableOpacity
+        style={styles.tweetAction}
+        onPress={() => handleLike(item)}
+      >
+        <Icon
+          name={item.likedByCurrentUser ? "favorite" : "favorite-border"}
+          size={20}
+          color={
+            item.likedByCurrentUser ? colors.primary : colors.textSecondary
+          }
+        />
+        <Text style={[styles.tweetActionText, { color: colors.text }]}>
+          {item.totalLikes || 0}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Comment */}
+      <TouchableOpacity
+        style={styles.tweetAction}
+        onPress={() =>
+          navigation.navigate("Comments", {
+            postId: item.id,
+            creatorId: item.userId,
+          })
+        }
+      >
+        <Icon
+          name="chat-bubble-outline"
+          size={20}
+          color={colors.textSecondary}
+        />
+        <Text style={[styles.tweetActionText, { color: colors.text }]}>
+          {item.totalComments || 0}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Share */}
+      <Icon
+        name="share"
+        size={20}
+        color={colors.textSecondary}
+        style={{ marginLeft: 10 }}
+      />
+
+      {/* Bookmark (Right aligned) */}
+      <TouchableOpacity
+        style={{ marginLeft: "auto" }}
+        onPress={() => handleBookmark(item)}
+      >
+        <Icon
+          name={
+            item.bookmarkedByCurrentUser ? "bookmark" : "bookmark-border"
+          }
+          size={20}
+          color={
+            item.bookmarkedByCurrentUser
+              ? colors.primary
+              : colors.textSecondary
+          }
+        />
+      </TouchableOpacity>
+    </View>
+  </View>
+</View>
       );
     },
     [colors, expanded, handleBookmark, handleLike, navigation, userData.uid]
   );
 
-  const renderNews = useCallback(
-    ({ item }) => <NewsCard item={item} colors={colors} />,
-    [colors]
-  );
-
-  // Selectors
-  const currentFeed = activeTab === "Trending" ? feed.trending : feed.recent;
-  const postList = currentFeed.posts || [];
-  const isFetching =
-    activeTab === "Trending" ? feed.trending.isFetching : feed.recent.isFetching;
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={styles.container}>
-   {/* === HEADER SECTION === */}
-<Animated.View
-  style={{
-    height: headerHeight,
-    overflow: "hidden",
-    opacity: headerHeight.interpolate({
-      inputRange: [0, 60],
-      outputRange: [0, 1],
-      extrapolate: "clamp",
-    }),
-  }}
->
-  <CustomHeader activeTab={activeTab} setActiveTab={setActiveTab} />
-</Animated.View>
+      {/* COLLAPSIBLE HEADER CONTAINER */}
+      <Animated.View
+        style={[
+          styles.headerContainer,
+          { transform: [{ translateY: headerTranslateY }] },
+        ]}
+      >
+        {/* HEADER */}
+        <Animated.View style={{ opacity: headerOpacity, height: HEADER_MAX }}>
+          <CustomHeader activeTab={activeTab} setActiveTab={setActiveTab} />
+        </Animated.View>
 
-{/* === TABS SECTION (always visible but shifts position) === */}
-<Animated.View
-  style={{
-    position: "absolute",
-    top: headerHeight.interpolate({
-      inputRange: [0, 60],
-      outputRange: [0, 60], // when header collapses, tabs stay pinned
-      extrapolate: "clamp",
-    }),
-    left: 0,
-    right: 0,
-    zIndex: 10,
-   
-  }}
->
-  <CustomHeaderTabs
-    tabs={["Post", "News", "Trending"]}
-    activeTab={activeTab}
-    setActiveTab={setActiveTab}
-    colors={colors}
-  />
-</Animated.View>
+        {/* TABS - always visible, never collapses */}
+        <View style={{ height: TABS_HEIGHT }}>
+          <CustomHeaderTabs
+            tabs={["Post", "News", "Trending"]}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            colors={colors}
+          />
+        </View>
+      </Animated.View>
 
-
-
-        <View style={styles.content}>
-          {/* --- POST LIST --- */}
-          <Animated.View
-  style={{
-    
-    transform: [{ translateY: headerTranslate }],
-    marginTop: 60, // initial static padding for header height
-  }}
->
-          <FlatList
-            ref={recentListRef}
-            style={{ display: activeTab === "Post" ? "flex" : "none" }}
-            data={feed.recent.posts}
-            renderItem={renderPost}
-            keyExtractor={(item) => item.id}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-            showsVerticalScrollIndicator={false}
-            onEndReached={loadMorePosts}
-            onEndReachedThreshold={0.5}
-            
-           onScroll={Animated.event(
+      {/* MAIN CONTENT */}
+     <View style={{ flex: 1 }}>
+  {/* POST LIST */}
+  <Animated.View
+    style={{ flex: 1, display: activeTab === "Post" ? "flex" : "none" }}
+  >
+    <FlatList
+      ref={recentListRef}
+      data={feed.recent.posts}
+      keyExtractor={(item) => item.id}
+      contentContainerStyle={{
+        paddingTop: HEADER_MAX + TABS_HEIGHT,
+        paddingBottom: 60,
+      }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+      onEndReached={loadMorePosts}
+     onScroll={Animated.event(
   [{ nativeEvent: { contentOffset: { y: scrollY } } }],
   {
     useNativeDriver: false,
-    listener: (e) => {
-      recentOffsetRef.current = e.nativeEvent.contentOffset.y;
+    listener: (event) => {
+      scrollPositions.current[activeTab] =
+        event.nativeEvent.contentOffset.y;
     },
   }
 )}
-  scrollEventThrottle={16}
-            contentContainerStyle={{ paddingBottom: 65 }}
-            ListEmptyComponent={
-              isFetching ? (
-                <ActivityIndicator
-                  size="large"
-                  color={colors.primary}
-                  style={{ marginTop: 50 }}
-                />
-              ) : (
-                <View style={{ alignItems: "center", marginTop: 40 }}>
-                  <Text style={{ color: colors.textSecondary }}>
-                    No posts found
-                  </Text>
-                </View>
-              )
-            }
-            ListFooterComponent={
-              isFetching && postList.length > 0 ? (
-                <ActivityIndicator
-                  size="small"
-                  color={colors.primary}
-                  style={{ marginVertical: 16 }}
-                />
-              ) : null
-            }
-          />
-</Animated.View>
-          {/* --- TRENDING LIST --- */}
-          <FlatList
-            ref={trendingListRef}
-            style={{ display: activeTab === "Trending" ? "flex" : "none" }}
-            data={feed.trending.posts}
-            renderItem={renderPost}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={false}
-            onEndReached={loadMorePosts}
-            onEndReachedThreshold={0.5}
-         onScroll={Animated.event(
+      scrollEventThrottle={16}
+      renderItem={renderPost}
+    />
+  </Animated.View>
+
+  {/* TRENDING LIST */}
+  <Animated.View
+    style={{ flex: 1, display: activeTab === "Trending" ? "flex" : "none" }}
+  >
+    <FlatList
+      ref={trendingListRef}
+      data={feed.trending.posts}
+      keyExtractor={(item) => item.id}
+      contentContainerStyle={{
+        paddingTop: HEADER_MAX + TABS_HEIGHT,
+        paddingBottom: 60,
+      }}
+      onEndReached={loadMorePosts}
+   onScroll={Animated.event(
   [{ nativeEvent: { contentOffset: { y: scrollY } } }],
   {
     useNativeDriver: false,
-    listener: (e) => {
-      trendingOffsetRef.current = e.nativeEvent.contentOffset.y;
+    listener: (event) => {
+      scrollPositions.current[activeTab] =
+        event.nativeEvent.contentOffset.y;
     },
   }
 )}
-  scrollEventThrottle={16}
-            contentContainerStyle={{ paddingBottom: 65 }}
-          />
+      scrollEventThrottle={16}
+      renderItem={renderPost}  
+    />
+  </Animated.View>
 
-          {/* --- NEWS LIST --- */}
-          <FlatList
-            ref={newsListRef}
-            style={{ display: activeTab === "News" ? "flex" : "none" }}
-            data={news}
-            renderItem={renderNews}
-            keyExtractor={(item) => item.id}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-            onEndReached={loadMoreNews}
-            onEndReachedThreshold={0.5}
-            showsVerticalScrollIndicator={false}
-            pagingEnabled
+  {/* NEWS LIST */}
+  <Animated.View
+    style={{ flex: 1, display: activeTab === "News" ? "flex" : "none" }}
+  >
+    <FlatList
+      ref={newsListRef}
+      data={news}
+      keyExtractor={(item) => item.id}
+      renderItem={renderNews}
+      contentContainerStyle={{
+        paddingTop: HEADER_MAX + TABS_HEIGHT/2,
+      }}
+      onEndReached={loadMoreNews}
+   onScroll={Animated.event(
+  [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+  {
+    useNativeDriver: false,
+    listener: (event) => {
+      scrollPositions.current[activeTab] =
+        event.nativeEvent.contentOffset.y;
+    },
+  }
+)}
+      scrollEventThrottle={16}
+      pagingEnabled
             snapToInterval={PAGE_HEIGHT}
             snapToAlignment="start"
             decelerationRate="fast"
             disableIntervalMomentum={true}
-            onScroll={Animated.event(
-  [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-  {
-    useNativeDriver: false,
-    listener: (e) => {
-      newsOffsetRef.current = e.nativeEvent.contentOffset.y;
-    },
-  }
-)}
-  scrollEventThrottle={16}
-          />
-        </View>
+    />
+  </Animated.View>
+</View>
 
-        {activeTab === "Post" && (
-          <FAB
-            icon="pencil"
-            onPress={() => navigation.navigate("AddPost")}
-            style={[styles.fab, { backgroundColor: colors.primary }]}
-            color="#fff"
-          />
-        )}
-      </View>
+
+      {/* FAB */}
+      {activeTab === "Post" && (
+        <FAB
+          icon="pencil"
+          style={[styles.fab, { backgroundColor: colors.primary }]}
+          onPress={() => navigation.navigate("AddPost")}
+          color="#fff"
+        />
+      )}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { flex: 1 },
-  avatar: { width: 42, height: 42, borderRadius: 21 },
-  postCard: { margin: 6, marginHorizontal: 12, padding: 12, borderRadius: 8 },
-  postHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
+  headerContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    zIndex: 20,
+    backgroundColor: "transparent",
   },
-  userInfo: { flexDirection: "row", alignItems: "center" },
-  userDetails: { marginLeft: 10 },
-  userName: { fontWeight: "600", fontSize: 16 },
-  userTagline: { fontWeight: "400", fontSize: 12 },
-  timeAgo: { fontWeight: "400", fontSize: 12 },
-  postContent: {
+  tweetContainer: {
+  flexDirection: "row",
+  paddingVertical: 12,
+  paddingRight: 6,
+  marginVertical: 6,
+  marginHorizontal:8,
+  borderBottomWidth: 0,
+  paddingHorizontal:8,
+
+},
+
+/* LEFT COLUMN (avatar + thread line) */
+threadColumn: {
+  width: 50,
+  alignItems: "center",
+},
+
+tweetAvatar: {
+  width: 36,
+  height: 36,
+  borderRadius: 18,
+  marginBottom: 4,
+},
+
+threadLine: {
+  width: 2,
+  flex: 1,
+  
+  marginTop: 4,
+},
+
+/* RIGHT CONTENT */
+tweetContentSection: {
+  flex: 1,
+  marginLeft:4
+},
+
+tweetHeader: {
+  flexDirection: "row",
+  alignItems: "center",
+},
+
+tweetName: {
+  fontWeight: "700",
+  fontSize: 15,
+},
+
+tweetTime: {
+  marginLeft: 6,
+  fontSize: 13,
+  fontWeight: "400",
+},
+
+tweetTagline: {
+  fontSize: 12,
+  marginTop: -2,
+  marginBottom: 4,
+},
+
+tweetText: {
+  marginTop: 4,
+  fontSize: 15,
+  lineHeight: 21,
+  fontWeight: "600",
+     fontFamily: "Inter-Variable",
+},
+ postContent: {
     marginVertical: 8,
-    fontFamily: "Inter-Variable",
+ 
     fontWeight: "700",
     fontSize: 15,
     lineHeight: 21,
   },
-  readMoreText: { color: "#1e88e5", fontWeight: "500", marginTop: 4 },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  actionsRow: { flexDirection: "row", alignItems: "center" },
-  actionItem: { flexDirection: "row", alignItems: "center", marginRight: 18 },
-  statsText: { fontWeight: "500", fontSize: 13, marginLeft: 6 },
+readMore: {
+  marginTop: 4,
+  fontSize: 13,
+  fontWeight: "600",
+},
+
+/* ACTION ROW */
+tweetActionsRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginTop: 12,
+},
+
+tweetAction: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginRight: 18,
+},
+
+tweetActionText: {
+  marginLeft: 6,
+  fontSize: 13,
+  fontWeight: "600",
+},
+
   fab: {
     position: "absolute",
-    bottom: 80,
+    bottom: 100,
     right: 20,
-    elevation: 6,
-    zIndex: 1000,
+    zIndex: 100,
   },
 });
 
 export default HomeScreenUser;
+ 

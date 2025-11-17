@@ -19,7 +19,7 @@ import Icon from "@react-native-vector-icons/material-icons";
 import { useTheme } from "../context/ThemeContext";
 import { pick, types, isCancel } from "@react-native-documents/picker";
 import storage from "@react-native-firebase/storage";
-import firestore from "@react-native-firebase/firestore";
+import firestore,{FieldValue} from "@react-native-firebase/firestore";
 import { useSelector } from "react-redux";
 import RNFS from "react-native-fs";
 
@@ -146,7 +146,7 @@ const BecomeExpertScreen = ({ onVerified }) => {
             ?.filter((x) => x) || [],
         certificates: certUrls,
         expertVerification: "pending",
-        submittedAt: firestore.FieldValue.serverTimestamp(),
+        submittedAt: FieldValue.serverTimestamp(),
       };
 
       await firestore().collection("users").doc(uid).update(expertData);
@@ -160,7 +160,7 @@ const BecomeExpertScreen = ({ onVerified }) => {
           notificationText:
             "Your expert verification request has been received!",
           comment: "Expert verification form submitted successfully.",
-          createdOn: firestore.FieldValue.serverTimestamp(),
+          createdOn: FieldValue.serverTimestamp(),
           status:'UNREAD',
         })
         .catch((err) => console.error("Notification add failed:", err));

@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import firestore from '@react-native-firebase/firestore';
+import firestore,{FieldValue,FieldPath} from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 import { getChatId } from "../services/chatService";
 const COMPANY_SWIPE_WINDOW_DAYS = 15;
@@ -18,12 +18,12 @@ const sendMatchMessages = async (chatId, userId, companyId, job) => {
         status: "ACCEPTED",
         requestedBy: companyId,
         acceptedBy: companyId,
-        createdAt: firestore.FieldValue.serverTimestamp(),
-        updatedAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
         lastMessage: {
           text: `User showed interest in ${job.title}`,
           from: userId,
-          sentOn: firestore.FieldValue.serverTimestamp(),
+          sentOn: FieldValue.serverTimestamp(),
           status:'UNREAD',
         },
       },
@@ -37,7 +37,7 @@ const sendMatchMessages = async (chatId, userId, companyId, job) => {
     to: userId,
     text: `User swiped for your job: ${job.title}`,
     type: "MESSAGE",
-    sentOn: firestore.FieldValue.serverTimestamp(),
+    sentOn: FieldValue.serverTimestamp(),
   });
 
   await ref.collection("messages").add({
@@ -45,7 +45,7 @@ const sendMatchMessages = async (chatId, userId, companyId, job) => {
     to: companyId,
     text: `Hey, can I get more info about ${job.title}?`,
     type: "MESSAGE",
-    sentOn: firestore.FieldValue.serverTimestamp(),
+    sentOn: FieldValue.serverTimestamp(),
     
   });
 
@@ -54,10 +54,10 @@ const sendMatchMessages = async (chatId, userId, companyId, job) => {
     lastMessage: {
       text: `Hey, can I get more info about ${job.title}?`,
       from: userId,
-      sentOn: firestore.FieldValue.serverTimestamp(),
+      sentOn: FieldValue.serverTimestamp(),
       status:'UNREAD',
     },
-    updatedAt: firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 };
 // 🔹 Fetch jobs paginated

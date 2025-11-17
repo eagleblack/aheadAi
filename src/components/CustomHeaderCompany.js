@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 10,
-    height: 80,
+    height: 60,
   },
   avatar: {
     width: 40,

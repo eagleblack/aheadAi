@@ -1,6 +1,6 @@
 // groupChatSliceRealtime.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import firestore from "@react-native-firebase/firestore";
+import firestore,{FieldValue,FieldPath} from "@react-native-firebase/firestore";
 import auth from "@react-native-firebase/auth";
 
 console.log("[groupChatSliceRealtime] loaded");
@@ -38,8 +38,8 @@ export const removeUserFromGroup = createAsyncThunk(
       }
 
       await groupRef.update({
-        participants: firestore.FieldValue.arrayRemove(targetUid),
-        memberCount: firestore.FieldValue.increment(-1),
+        participants:FieldValue.arrayRemove(targetUid),
+        memberCount: FieldValue.increment(-1),
       });
 
       console.log(`[removeUserFromGroup] Removed user ${targetUid} from ${groupId}`);
@@ -289,7 +289,7 @@ export const sendGroupMessage = createAsyncThunk(
       senderId: user.uid,
       text,
       type: "text",
-      createdAt: firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     };
 
     const msgRef = firestore()
@@ -303,7 +303,7 @@ export const sendGroupMessage = createAsyncThunk(
       lastMessage: {
         text,
         senderId: user.uid,
-        createdAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       },
     });
   }
@@ -317,8 +317,8 @@ export const joinGroup = createAsyncThunk("groupChat/joinGroup", async ({ groupI
   if (!user) throw new Error("Not authenticated");
 
   await firestore().collection("groups").doc(groupId).update({
-    participants: firestore.FieldValue.arrayUnion(user.uid),
-    memberCount: firestore.FieldValue.increment(1),
+    participants: FieldValue.arrayUnion(user.uid),
+    memberCount: FieldValue.increment(1),
   });
 });
 
@@ -327,8 +327,8 @@ export const leaveGroup = createAsyncThunk("groupChat/leaveGroup", async ({ grou
   if (!user) throw new Error("Not authenticated");
 
   await firestore().collection("groups").doc(groupId).update({
-    participants: firestore.FieldValue.arrayRemove(user.uid),
-    memberCount: firestore.FieldValue.increment(-1),
+    participants: FieldValue.arrayRemove(user.uid),
+    memberCount: FieldValue.increment(-1),
   });
 });
 

@@ -11,7 +11,7 @@ import {
   Image,
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
-import firestore from "@react-native-firebase/firestore";
+import firestore,{FieldValue} from "@react-native-firebase/firestore";
 import auth from "@react-native-firebase/auth";
 import { useTheme } from "../context/ThemeContext";
 import Icon from "@react-native-vector-icons/material-icons";
@@ -63,7 +63,7 @@ const FollowingScreen = () => {
         await followRef.set({
           followerId: currentUser.uid,
           followingId: targetUserId,
-          followedAt: firestore.FieldValue.serverTimestamp(),
+          followedAt: FieldValue.serverTimestamp(),
         });
       }
       dispatch(resetFollowing());

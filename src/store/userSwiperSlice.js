@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import firestore from "@react-native-firebase/firestore";
+import firestore,{FieldValue,FieldPath}from "@react-native-firebase/firestore";
 import { getChatId } from "../services/chatService";
 
 const USERS_PER_PAGE = 30;
@@ -17,12 +17,12 @@ const sendMatchMessages = async (chatId, companyId, userId, user) => {
         status: "ACCEPTED",
         requestedBy: companyId,
         acceptedBy: companyId,
-        createdAt: firestore.FieldValue.serverTimestamp(),
-        updatedAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
         lastMessage: {
           text: `Company showed interest in ${user.name}`,
           from: companyId,
-          sentOn: firestore.FieldValue.serverTimestamp(),
+          sentOn: FieldValue.serverTimestamp(),
         },
       },
       { merge: true }
@@ -35,7 +35,7 @@ const sendMatchMessages = async (chatId, companyId, userId, user) => {
     to: userId,
     text: `Company swiped for your profile: ${user.name}`,
     type: "MESSAGE",
-    sentOn: firestore.FieldValue.serverTimestamp(),
+    sentOn: FieldValue.serverTimestamp(),
   });
 
   await ref.collection("messages").add({
@@ -43,16 +43,16 @@ const sendMatchMessages = async (chatId, companyId, userId, user) => {
     to: companyId,
     text: `Hey, I'm interested!`,
     type: "MESSAGE",
-    sentOn: firestore.FieldValue.serverTimestamp(),
+    sentOn: FieldValue.serverTimestamp(),
   });
 
   await ref.update({
     lastMessage: {
       text: `Hey, I'm interested!`,
       from: userId,
-      sentOn: firestore.FieldValue.serverTimestamp(),
+      sentOn: FieldValue.serverTimestamp(),
     },
-    updatedAt: firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 };
 
@@ -65,7 +65,7 @@ export const fetchUsersForCompany = createAsyncThunk(
       const company = state.company.company;
       if (!company?.uid) throw new Error("Company not logged in");
 
-      const now = firestore.Timestamp.now();
+      const now = FieldValue.serverTimestamp();
       const swipedUserCache = company.swipedUsers || [];
       let usersToReturn = [];
       let lastDoc = null;

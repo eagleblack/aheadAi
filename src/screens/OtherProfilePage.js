@@ -20,7 +20,7 @@ import Icon from "react-native-vector-icons/Ionicons";
 import Feather from "react-native-vector-icons/Feather";
 import OtherProfilePosts from "../components/OtherProfilePosts";
 import { clearPosts } from "../store/otherProfilePostSlice";
-import firestore from "@react-native-firebase/firestore";
+import firestore,{FieldValue} from "@react-native-firebase/firestore";
 import auth from "@react-native-firebase/auth";
 
 const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
@@ -88,7 +88,7 @@ const handleFollowToggle = async () => {
       await followRef.set({
         followerId: currentUser.uid,
         followingId: uid,
-        followedAt: firestore.FieldValue.serverTimestamp(),
+        followedAt: FieldValue.serverTimestamp(),
       });
 
       await notificationsRef.add({
@@ -96,8 +96,8 @@ const handleFollowToggle = async () => {
         notificationTo: uid,
         notificationType: "FOLLOW",
         notificationText: `You have a new follower.`,
-        createdOn: firestore.FieldValue.serverTimestamp(),
-        updatedAt: firestore.FieldValue.serverTimestamp(),
+        createdOn: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
         read: false,
         status:"UNREAD"
       });

@@ -20,7 +20,7 @@ const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
       
               <View style={[styles.avatar,{borderColor:colors.primary}]}>
   <Image 
-    source={require("../assets/logo_svg_home.png")} 
+    source={require("../assets/logomain.jpg")} 
     style={{ width: 34, height: 34, borderRadius: 18}} 
     resizeMode="contain"
   />    
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 10,
-    height: 60,
+    height: 55,
   },
   avatar: {
     width: 40,
@@ -81,8 +81,8 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    marginBottom: 6, // ↓ slightly reduced spacing for tabs
-    marginRight:5
+   
+
   },
   headerRight: {
     flexDirection: "row",

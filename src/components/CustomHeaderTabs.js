@@ -36,7 +36,7 @@ const CustomHeaderTabs = ({ tabs = [], activeTab, setActiveTab, colors }) => {
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    height: 60, // full height
+    height: 50, // full height
     alignItems: "center",
     justifyContent: "center",
 

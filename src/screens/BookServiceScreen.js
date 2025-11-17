@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from "react-native";
 import { Card } from "react-native-paper";
-import firestore from "@react-native-firebase/firestore";
+import firestore,{FieldValue} from "@react-native-firebase/firestore";
 import { Calendar } from "react-native-calendars";
 import { useTheme } from "../context/ThemeContext";
 
@@ -211,13 +211,13 @@ const BookServiceScreen = ({ navigation, route }) => {
           start: selectedSlot.start,
           end: selectedSlot.end,
           status: "pending",
-          createdAt: firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
         });
 
         // Update parent availability
         selectedSlot.chunks.forEach((chunk) => {
           tx.update(parentRef, {
-            bookedTimes: firestore.FieldValue.arrayUnion({
+            bookedTimes: FieldValue.arrayUnion({
               start: chunk.start,
               end: chunk.end,
               userId,
@@ -244,7 +244,7 @@ const BookServiceScreen = ({ navigation, route }) => {
         serviceId:selectedService.id,
         notificationText:
           "A new service booking was requested!",
-        createdOn: firestore.FieldValue.serverTimestamp(),
+        createdOn: FieldValue.serverTimestamp(),
         status:'UNREAD'
 
       })

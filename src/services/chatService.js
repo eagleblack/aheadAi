@@ -1,4 +1,4 @@
-import firestore from '@react-native-firebase/firestore';
+import firestore,{FieldValue} from '@react-native-firebase/firestore';
 import {
   setMessages,
   addNewMessage,
@@ -120,12 +120,12 @@ export const startChat = async (fromId, toId, text, senderUsername) => {
       status: 'REQUESTED',
       requestedBy: fromId,
       acceptedBy: null,
-      createdAt: firestore.FieldValue.serverTimestamp(),
-      updatedAt: firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       lastMessage: {
         text,
         from: fromId,
-        sentOn: firestore.FieldValue.serverTimestamp(),
+        sentOn: FieldValue.serverTimestamp(),
         status: 'UNREAD',
       },
     },
@@ -138,7 +138,7 @@ export const startChat = async (fromId, toId, text, senderUsername) => {
     to: toId,
     text,
     type: 'MESSAGE',
-    sentOn: firestore.FieldValue.serverTimestamp(),
+    sentOn: FieldValue.serverTimestamp(),
   });
 
   // 3️⃣ Notify Cloud Function
@@ -179,17 +179,17 @@ export const sendMessage = async (chatId, fromId, toId, text,senderUsername) => 
     to: toId,
     text,
     type: 'MESSAGE',
-    sentOn: firestore.FieldValue.serverTimestamp(),
+    sentOn: FieldValue.serverTimestamp(),
   });
 
   await ref.update({
     lastMessage: {
       text,
       from: fromId,
-      sentOn: firestore.FieldValue.serverTimestamp(),
+      sentOn: FieldValue.serverTimestamp(),
       status:'UNREAD'
     },
-    updatedAt: firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
    // 3️⃣ Send Cloud Function request
   try {
@@ -222,14 +222,14 @@ export const acceptChatRequest = async (chatId, userId) => {
   await firestore().collection('chats').doc(chatId).update({
     status: 'ACTIVE',
     acceptedBy: userId,
-    updatedAt: firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 };
 
 export const rejectChatRequest = async (chatId) => {
   await firestore().collection('chats').doc(chatId).update({
     status: 'CLOSED',
-    updatedAt: firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 };
 
@@ -307,7 +307,7 @@ export const markChatAsRead = async (chatId) => {
   if (lastMessage?.from && lastMessage.from !== currentUserId) {
     await ref.update({
       "lastMessage.status": "READ",
-      updatedAt: firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
   }
 };

@@ -1,6 +1,6 @@
 // otherProfileSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import firestore from "@react-native-firebase/firestore";
+import firestore,{FieldValue,FieldPath} from "@react-native-firebase/firestore";
 import auth from "@react-native-firebase/auth";
 
 console.log("[otherProfileSlice] module loaded");
@@ -178,14 +178,14 @@ export const toggleBookmark = createAsyncThunk(
       await firestore().runTransaction(async (transaction) => {
         const bookmarkDoc = await transaction.get(bookmarkRef);
         if (!docExists(bookmarkDoc)) {
-          transaction.set(bookmarkRef, { userId: user.uid, createdAt: firestore.FieldValue.serverTimestamp() });
-          transaction.set(globalBookmarkRef, { userId: user.uid, postId: post.id, bookmarkedOn: firestore.FieldValue.serverTimestamp() });
-          transaction.update(postRef, { postIndex: firestore.FieldValue.increment(5) });
+          transaction.set(bookmarkRef, { userId: user.uid, createdAt: FieldValue.serverTimestamp() });
+          transaction.set(globalBookmarkRef, { userId: user.uid, postId: post.id, bookmarkedOn: FieldValue.serverTimestamp() });
+          transaction.update(postRef, { postIndex: FieldValue.increment(5) });
           bookmarked = true;
         } else {
           transaction.delete(bookmarkRef);
           transaction.delete(globalBookmarkRef);
-          transaction.update(postRef, { postIndex: firestore.FieldValue.increment(-5) });
+          transaction.update(postRef, { postIndex: FieldValue.increment(-5) });
           bookmarked = false;
         }
       });
@@ -231,12 +231,12 @@ export const toggleLike = createAsyncThunk(
         if (!docExists(likeDoc)) {
           transaction.set(likeRef, {
             userId: user.uid,
-            createdAt: firestore.FieldValue.serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
           });
 
           transaction.update(postRef, {
-            totalLikes: firestore.FieldValue.increment(1),
-            postIndex: firestore.FieldValue.increment(1),
+            totalLikes: FieldValue.increment(1),
+            postIndex: FieldValue.increment(1),
           });
 
           // Don't notify yourself
@@ -267,7 +267,7 @@ export const toggleLike = createAsyncThunk(
                   totalUser > 1
                     ? `${username} and ${totalUser - 1} others liked your post`
                     : `${username} liked your post`,
-                updatedAt: firestore.FieldValue.serverTimestamp(),
+                updatedAt: FieldValue.serverTimestamp(),
               });
             } else {
               // --------------------------------------------
@@ -281,7 +281,7 @@ export const toggleLike = createAsyncThunk(
                 notificationText: `${username} liked your post`,
                 postId: post.id,
                 totalUser: 1,
-                createdAt: firestore.FieldValue.serverTimestamp(),
+                createdAt: FieldValue.serverTimestamp(),
                 read: false,
                 status:'UNREAD'
               });
@@ -294,8 +294,8 @@ export const toggleLike = createAsyncThunk(
         else {
           transaction.delete(likeRef);
           transaction.update(postRef, {
-            totalLikes: firestore.FieldValue.increment(-1),
-            postIndex: firestore.FieldValue.increment(-1),
+            totalLikes: FieldValue.increment(-1),
+            postIndex: FieldValue.increment(-1),
           });
 
           // Optional cleanup: update or delete LIKE notification
@@ -321,7 +321,7 @@ export const toggleLike = createAsyncThunk(
                   newTotal === 1
                     ? "1 person liked your post"
                     : `${newTotal} users liked your post`,
-                updatedAt: firestore.FieldValue.serverTimestamp(),
+                updatedAt: FieldValue.serverTimestamp(),
                 status:'UNREAD'
               });
             }

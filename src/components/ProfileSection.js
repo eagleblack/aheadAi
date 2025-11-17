@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from "react-native";
 import { Avatar, ActivityIndicator } from "react-native-paper";
-import firestore from "@react-native-firebase/firestore";
+import firestore,{FieldValue} from "@react-native-firebase/firestore";
 import Icon from "@react-native-vector-icons/material-icons";
 import { useTheme } from "../context/ThemeContext";
 
@@ -47,7 +47,7 @@ const ProfileSection = ({ expert }) => {
         expertBio: bio,
         expertProfession: profession,
         expertise,
-        updatedAt: firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
       Alert.alert("Saved", "Profile updated successfully.");
     } catch (err) {

@@ -1,6 +1,6 @@
 // userPostsSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import firestore from "@react-native-firebase/firestore";
+import firestore ,{FieldValue,FieldPath}from "@react-native-firebase/firestore";
 import auth from "@react-native-firebase/auth";
 
 let unsubscribeUserPosts = null;
@@ -95,16 +95,16 @@ export const toggleLikeUserPost = createAsyncThunk(
         // unlike
         await likeRef.delete();
         await postRef.update({
-          totalLikes: firestore.FieldValue.increment(-1),
+          totalLikes: FieldValue.increment(-1),
         });
         return { postId: post.id, liked: false };
       } else {
         // like
         await likeRef.set({
-          createdAt: firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
         });
         await postRef.update({
-          totalLikes: firestore.FieldValue.increment(1),
+          totalLikes: FieldValue.increment(1),
         });
         return { postId: post.id, liked: true };
       }

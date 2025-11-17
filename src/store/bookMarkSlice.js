@@ -1,6 +1,6 @@
 // bookMarkSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import firestore from "@react-native-firebase/firestore";
+import firestore,{FieldValue,FieldPath} from "@react-native-firebase/firestore";
 import auth from "@react-native-firebase/auth";
 
 const togglingPosts = new Set();
@@ -92,7 +92,7 @@ export const fetchBookmarkedPosts = createAsyncThunk(
       // Fetch corresponding posts
       const postSnapshots = await firestore()
         .collection("posts")
-        .where(firestore.FieldPath.documentId(), "in", postIds)
+        .where(FieldPath.documentId(), "in", postIds)
         .get();
 
       const postsData = postSnapshots.docs.map((doc) => ({

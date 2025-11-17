@@ -18,7 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../context/ThemeContext";
 
 import auth from "@react-native-firebase/auth";
-import firestore from "@react-native-firebase/firestore";
+import firestore,{FieldValue} from "@react-native-firebase/firestore";
 import storage from "@react-native-firebase/storage";
 
 import { launchImageLibrary } from "react-native-image-picker";
@@ -73,8 +73,8 @@ export default function CreatePostScreen({ navigation }) {
         content: text.trim(),
         imageUrl: imageUrl || null,
         links: detectedLinks,
-        createdAt: firestore.FieldValue.serverTimestamp(),
-        updatedAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
         totalLikes: 0,
         totalComments: 0,
         postIndex:0,

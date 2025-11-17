@@ -34,7 +34,11 @@ const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
 
             {userData?.profilePic?
                    <Image source={{ uri: userData?.profilePic }}    style={styles.avatar} />:
-                    <Image source={{ uri: DUMMY_PROFILE_PIC }}    style={styles.avatar} />}
+                   <Image 
+                       source={require("../assets/logomain.jpg")} 
+                       style={styles.avatar} 
+                       resizeMode="contain"
+                     />  }
      
         <Text style={[styles.name, { color: colors.text }]}>{userData?.name || "Ahead User"}</Text>
         <Text style={[styles.bio, { color: colors.textSecondary }]}>
