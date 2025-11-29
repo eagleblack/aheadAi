@@ -1,544 +1,655 @@
-// JobListing.js
-import React, { useState, useEffect, useMemo } from "react";
+// HomeScreen.js
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ScrollView,
-  Modal,
-  Alert,
+View,
+Text,
+StyleSheet,
+RefreshControl,
+FlatList,
+TouchableOpacity,
+Image,
+Dimensions,
+ActivityIndicator,    
+Linking,
 } from "react-native";
-import { Card, Button, TextInput, ActivityIndicator } from "react-native-paper";
-import Icon from "@react-native-vector-icons/material-icons";
-import firestore from "@react-native-firebase/firestore";
+import { FAB } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
+import Icon from "@react-native-vector-icons/material-icons";
+import Hyperlink from "react-native-hyperlink";
 import { useTheme } from "../context/ThemeContext";
-import { useSelector } from "react-redux";
-import { Calendar } from "react-native-calendars";
-import CustomHeaderCompany from "../components/CustomHeaderCompany";
+import CustomHeader from "../components/CustomHeader";
+import CustomHeaderTabs from "../components/CustomHeaderTabs";
+
+import FullWidthImage from "../components/FullWidthImage";
+import NewsCard from "../components/NewsCard";
+import { timeAgo } from "../utils/time";
+import { Animated } from "react-native";
+
+import {
+fetchTrendingPosts,
+fetchRecentPosts,
+toggleBookmark,
+toggleBookmarkOptimistic,
+toggleLike,
+toggleLikeOptimistic,
+} from "../store/feedSlice";
+
+import {
+fetchInitialNews,
+fetchMoreNews,
+refreshNews,
+clearNews,
+} from "../store/newsSlice";
 import { useNavigation } from "@react-navigation/native";
 
-const HomeScreenComp = ({  }) => {
-  const { colors } = useTheme();
-  const navigation=useNavigation()
-  const { user: userData } = useSelector((state) => state.user);
-  const COMPANY_ID = userData?.uid;
-  const { filters, jobOptions } = useSelector((state) => state.selection);
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+const BOTTOM_TAB_HEIGHT = 60;
+const PAGE_HEIGHT = SCREEN_HEIGHT - BOTTOM_TAB_HEIGHT;
 
-  const [jobs, setJobs] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [loading, setLoading] = useState(true);
-  const [selectedJob, setSelectedJob] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [calendarVisible, setCalendarVisible] = useState(false);
-  const [dropdownType, setDropdownType] = useState(null);
+const HEADER_MAX = 50;
+const TABS_HEIGHT = 50;
 
-  // Fetch company jobs
-  useEffect(() => {
-    const unsubscribe = firestore()
-      .collection("jobs")
-      .where("companyId", "==", COMPANY_ID)
-      .onSnapshot(
-        (snapshot) => {
-          const fetchedJobs = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-            deadline: parseDeadline(doc.data().deadline),
-          }));
-          setJobs(fetchedJobs);
-          setLoading(false);
-        },
-        (err) => {
-          console.error("❌ Firestore error:", err);
-          Alert.alert("Error", "Failed to fetch job listings.");
-          setLoading(false);
-        }
-      );
+const HomeScreenUser = () => {
+const navigation = useNavigation();
+const { colors } = useTheme();
+const dispatch = useDispatch();
 
-    return () => unsubscribe();
-  }, [COMPANY_ID]);
+const scrollY = useRef(new Animated.Value(0)).current;
+const lastScrollY = useRef(0);
+const headerAnim = useRef(new Animated.Value(0)).current; // 0 = shown, 1 = hidden
+// HEADER COLLAPSE ANIMATION
+const headerTranslateY = headerAnim.interpolate({
+inputRange: [0, 1],
+outputRange: [0, -HEADER_MAX],
+});
+const headerOpacity = headerAnim.interpolate({
+inputRange: [0, 1],
+outputRange: [1, 0],
+});
 
+const feed = useSelector((state) => state.feed);
+const { news, loadingInitial: isFetchingNews, hasMore } = useSelector(
+(state) => state.news
+);
+const { user: userData } = useSelector((state) => state.user);
 
-  const parseDeadline = (deadline) => {
-    if (!deadline) return null;
-    if (deadline instanceof Date) return deadline;
-    if (deadline.seconds) return deadline.toDate();
-    try {
-      return new Date(deadline);
-    } catch {
-      return null;
-    }
+const [refreshing, setRefreshing] = useState(false);
+const [activeTab, setActiveTab] = useState("Post");
+
+const recentListRef = useRef(null);
+const trendingListRef = useRef(null);
+const newsListRef = useRef(null);
+
+const recentOffsetRef = useRef(0);
+const trendingOffsetRef = useRef(0);
+const newsOffsetRef = useRef(0);
+const scrollPositions = useRef({
+Post: 0,
+Trending: 0,
+News: 0,
+});
+// Initial fetch
+useEffect(() => {
+dispatch(fetchRecentPosts());
+dispatch(fetchTrendingPosts());
+dispatch(fetchInitialNews());
+return () => dispatch(clearNews());
+}, []);
+
+const onRefresh = async () => {
+setRefreshing(true);
+if (activeTab === "News") await dispatch(refreshNews());
+else if (activeTab === "Trending") await dispatch(fetchTrendingPosts());
+else await dispatch(fetchRecentPosts());
+setRefreshing(false);
+};
+Text.render = (function (render) {
+  return function (...args) {
+    let originText = render.apply(this, args);
+    console.log("Font Family used:", originText.props.style?.fontFamily);
+    return originText;
   };
-  // Filter jobs by category
-  const filteredJobs = useMemo(() => {
-    if (selectedCategory === "All") return jobs;
-    return jobs.filter((job) => job?.jobType === selectedCategory);
-  }, [jobs, selectedCategory]);
+})(Text.render);
+// Pagination
+const loadMorePosts = () => {
+const data = activeTab === "Trending" ? feed.trending : feed.recent;
+if (!data.isFetching && !data.isLastPage) {
+dispatch(
+activeTab === "Trending"
+? fetchTrendingPosts({ loadMore: true })
+: fetchRecentPosts({ loadMore: true })
+);
+}
+};
+useEffect(() => {
+const targetOffset = scrollPositions.current[activeTab] || 0;
 
-  // --- Modal Edit Logic ---
-  const handleEdit = (job) => {
-    setSelectedJob({ ...job });
-    setModalVisible(true);
-  };
+// Scroll list to saved position
+if (activeTab === "Post" && recentListRef.current) {
+recentListRef.current.scrollToOffset({
+offset: targetOffset,
+animated: false,
+});
+}
 
-  const handleFieldChange = (field, value) => {
-    setSelectedJob((prev) => ({ ...prev, [field]: value }));
-  };
+if (activeTab === "Trending" && trendingListRef.current) {
+trendingListRef.current.scrollToOffset({
+offset: targetOffset,
+animated: false,
+});
+}
 
-  const flipStatus = () => {
-    if (!selectedJob) return;
-    const newStatus = selectedJob.status === "open" ? "closed" : "open";
+if (activeTab === "News" && newsListRef.current) {
+newsListRef.current.scrollToOffset({
+offset: targetOffset,
+animated: false,
+});
+}
 
-    if (newStatus === "open") {
-      if (!selectedJob.deadline || selectedJob.deadline < new Date()) {
-        Alert.alert(
-          "Invalid Deadline",
-          "You cannot open this job because the deadline has already passed."
-        );
-        return;
-      }
-    }
+// Reset scrollY so header reappears correctly
+scrollY.setValue(targetOffset);
 
-    setSelectedJob((prev) => ({ ...prev, status: newStatus }));
-  };
+}, [activeTab]);
+const loadMoreNews = () => {
+if (!isFetchingNews && hasMore) dispatch(fetchMoreNews());
+};
 
-  const handleSave = async () => {
-    if (!selectedJob) return;
+const renderNews = ({ item }) => <NewsCard item={item} colors={colors} />;
+const [expanded, setExpanded] = useState({});
+const handleLike = useCallback(
+(post) => {
+dispatch(toggleLikeOptimistic({ feedType: "recent", postId: post.id }));
+dispatch(toggleLikeOptimistic({ feedType: "trending", postId: post.id }));
+dispatch(toggleLike(post));
+},
+[dispatch]
+);
 
-    const { id, ...jobData } = selectedJob;
+const handleBookmark = useCallback(
+(post) => {
+dispatch(toggleBookmarkOptimistic({ feedType: "recent", postId: post.id }));
+dispatch(toggleBookmarkOptimistic({ feedType: "trending", postId: post.id }));
+dispatch(toggleBookmark(post));
+},
+[dispatch]
+);
+const renderPost = useCallback(
+({ item }) => {
+const isExpanded = expanded[item.id] || false;
+const contentPreview =
+item.content?.length > 120 && !isExpanded
+? item.content.slice(0, 120) + "..."
+: item.content;
 
-    if (!jobData.deadline || !(jobData.deadline instanceof Date)) {
-      Alert.alert("Invalid Deadline", "Please select a valid deadline.");
-      return;
-    }
+return (
+<View style={[styles.tweetContainer,{ borderBottomColor: colors.text,}]}>
 
-    if (jobData.deadline < new Date()) {
-      Alert.alert("Deadline Passed", "Please select a future date.");
-      return;
-    }
+{/* Left Thread Line */}
+<TouchableOpacity
+style={styles.threadColumn}
+onPress={() =>
+item?.user.uid === userData.uid
+? navigation.navigate("Profile")
+: navigation.navigate("OtherProfile", { uid: item?.user.uid })
+}
+>
+<Image source={{ uri: item.user.avatar }} style={styles.tweetAvatar} />
+<View style={[styles.threadLine,{borderColor:colors.text}]} />
+</TouchableOpacity>
 
-    try {
-      setSaving(true);
-      const updated = {
-        ...jobData,
-        deadline: firestore.Timestamp.fromDate(jobData.deadline),
-        updatedAt: firestore.Timestamp.now(),
-      };
+{/* Right Content */}
+<View style={styles.tweetContentSection}>
 
-      await firestore().collection("jobs").doc(id).update(updated);
-      setJobs((prev) =>
-        prev.map((j) => (j.id === id ? { ...updated, id } : j))
-      );
+{/* Header */}
+<TouchableOpacity
+style={styles.tweetHeader}
+onPress={() =>
+item?.user.uid === userData.uid
+? navigation.navigate("Profile")
+: navigation.navigate("OtherProfile", { uid: item?.user.uid })
+}
+>
+<Text style={[styles.tweetName, { color: colors.text }]}>
+{item.user.name}
+</Text>
+<Text style={[styles.tweetTime, { color: colors.textSecondary }]}>
+· {timeAgo(item.createdAt)}
+</Text>
+</TouchableOpacity>
 
-      setModalVisible(false);
-      Alert.alert("✅ Updated", "Job updated successfully!");
-    } catch (err) {
-      console.error("❌ Update error:", err);
-      Alert.alert("Error", "Failed to update job.");
-    } finally {
-      setSaving(false);
-    }
-  };
+{/* Tagline */}
+<Text
+style={[styles.tweetTagline, { color: colors.textSecondary }]}
+>
+{item.user?.tagline ?? "New on Ahead"}
+</Text>
 
-  // --- UI Render ---
-  const renderCategoryTabs = () => {
-    const categories = ["All", ...(jobOptions || [])];
-    return (
-      <View style={styles.categoryContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: 10,
-            alignItems: "center",
-          }}
-        >
-          {categories.map((category) => (
-            <TouchableOpacity
-              key={category}
-              onPress={() => setSelectedCategory(category)}
-              style={[
-                styles.categoryChip,
-                {
-                  backgroundColor:
-                    selectedCategory === category
-                      ? colors.primary
-                      : colors.surface,
-                  borderColor: colors.primary,
-                },
-              ]}
-            >
-              <Text
-                style={{
-                  color:
-                    selectedCategory === category
-                      ? colors.onPrimary
-                      : colors.text,
-                  fontWeight: "600",
-                }}
-              >
-                {category}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-    );
-  };
+{/* Content + Links */}
+{item.content && (
+<Hyperlink
+linkStyle={{ color: colors.link, textDecorationLine: "underline" }}
+onPress={(url) => Linking.openURL(url)}
+>
+<Text style={[styles.tweetText, { color: colors.text }]}>
+{contentPreview}
+</Text>
+</Hyperlink>
+)}
 
-  const renderJob = ({ item }) => (
-    <TouchableOpacity
-      onPress={() => navigation.navigate("Candidates", { jobId: item.id })}
-      activeOpacity={0.9}
-    >
-      <Card style={[styles.jobCard, { backgroundColor: colors.surface }]}>
-        <TouchableOpacity
-          style={styles.editIcon}
-          onPress={() => handleEdit(item)}
-        >
-          <Icon name="edit" size={20} color={colors.primary} />
-        </TouchableOpacity>
+{/* Read more */}
+{item.content?.length > 120 && (
+<TouchableOpacity
+onPress={() =>
+setExpanded((prev) => ({ ...prev, [item.id]: !isExpanded }))
+}
+>
+<Text style={[styles.readMore, { color: colors.primary }]}>
+{isExpanded ? "Read less" : "Read more"}
+</Text>
+</TouchableOpacity>
+)}
 
-        <Card.Content>
-          <Text style={[styles.title, { color: colors.text }]}>
-            {item.title || "Untitled Job"}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            {item.location || "No location"} •{" "}
-            {item.salary ? `₹${item.salary}` : "Salary not specified"}
-          </Text>
-           <Text style={[styles.deadline, { color: colors.textSecondary }]}>
-                           Deadline:{" "}
-                         {item?.deadline
-           ? (item.deadline instanceof Date
-               ? item.deadline.toLocaleDateString()
-               : item.deadline.toDate().toLocaleDateString())
-           : "Not set"}
-                         </Text>
-          <Text style={[styles.status, { color: colors.textSecondary }]}>
-            Status: {item.status === "open" ? "Open" : "Closed"}
-          </Text>
-        </Card.Content>
-      </Card>
-    </TouchableOpacity>
-  );
+{/* Image */}
+{item.imageUrl && (
+<FullWidthImage uri={item.imageUrl} resizeMode="contain" />
+)}
 
-  if (loading) {
-    return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
+{/* Actions */}
+<View style={styles.tweetActionsRow}>
+{/* Like */}
+<TouchableOpacity
+style={styles.tweetAction}
+onPress={() => handleLike(item)}
+>
+<Icon
+name={item.likedByCurrentUser ? "favorite" : "favorite-border"}
+size={24}
+color={
+item.likedByCurrentUser ? colors.primary : colors.textSecondary
+}
+/>
+<Text style={[styles.tweetActionText, { color: colors.text }]}>
+{item.totalLikes || 0}
+</Text>
+</TouchableOpacity>
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <CustomHeaderCompany />
-      {renderCategoryTabs()}
+{/* Comment */}
+<TouchableOpacity
+style={styles.tweetAction}
+onPress={() =>
+navigation.navigate("Comments", {
+postId: item.id,
+creatorId: item.userId,
+})
+}
+>
+<Icon
+name="chat-bubble-outline"
+size={24}
+color={colors.textSecondary}
+/>
+<Text style={[styles.tweetActionText, { color: colors.text }]}>
+{item.totalComments || 0}
+</Text>
+</TouchableOpacity>
 
-      <FlatList
-        data={filteredJobs}
-        renderItem={renderJob}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        style={{ marginBottom: 80 }}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Icon name="work-off" size={64} color={colors.textSecondary} />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              No Jobs Created.
-            </Text>
-            <Text style={[styles.emptyMsg, { color: colors.textSecondary }]}>
-              Your posted jobs will appear here.
-            </Text>
-          </View>
-        }
-      />
+{/* Share */}
+<Icon
+name="share"
+size={24}
+color={colors.textSecondary}
+style={{ marginLeft: 10 }}
+/>
 
-      {/* ✏️ Edit Job Modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View
-            style={[
-              styles.modalContent,
-              { backgroundColor: colors.surface, borderColor: colors.primary },
-            ]}
-          >
-            <ScrollView>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Edit Job
-              </Text>
+{/* Bookmark (Right aligned) */}
+<TouchableOpacity
+style={{ marginLeft: "auto" }}
+onPress={() => handleBookmark(item)}
+>
+<Icon
+name={
+item.bookmarkedByCurrentUser ? "bookmark" : "bookmark-border"
+}
+size={24}
+color={
+item.bookmarkedByCurrentUser
+? colors.primary
+: colors.textSecondary
+}
+/>
+</TouchableOpacity>
+</View>
+</View>
+</View>
+);
+},
+[colors, expanded, handleBookmark, handleLike, navigation, userData.uid]
+);
 
-              {selectedJob && (
-                <>
-                  <TextInput
-                    label="Title"
-                    mode="outlined"
-                    value={selectedJob.title ?? ""}
-                    onChangeText={(t) => handleFieldChange("title", t)}
-                    style={styles.input}
-                  />
-                  <TextInput
-                    label="Location"
-                    mode="outlined"
-                    value={selectedJob.location ?? ""}
-                    onChangeText={(t) => handleFieldChange("location", t)}
-                    style={styles.input}
-                  />
-                  <TextInput
-                    label="Salary"
-                    mode="outlined"
-                    value={String(selectedJob.salary ?? "")}
-                    onChangeText={(t) => handleFieldChange("salary", t)}
-                    style={styles.input}
-                  />
-                  <TextInput
-                    label="Experience"
-                    mode="outlined"
-                    value={selectedJob.experience ?? ""}
-                    onChangeText={(t) => handleFieldChange("experience", t)}
-                    style={styles.input}
-                  />
-                  <TextInput
-                    label="Skills"
-                    mode="outlined"
-                    value={selectedJob.skills ?? ""}
-                    onChangeText={(t) => handleFieldChange("skills", t)}
-                    style={styles.input}
-                  />
-                  <TextInput
-                    label="Shift"
-                    mode="outlined"
-                    value={selectedJob.shift ?? ""}
-                    onChangeText={(t) => handleFieldChange("shift", t)}
-                    style={styles.input}
-                  />
-                  <TouchableOpacity
-                    style={[styles.dropdown, { borderColor: colors.primary }]}
-                    onPress={() => setDropdownType("category")}
-                  >
-                    <Text style={{ color: colors.text }}>
-                      {selectedJob.jobCategory || "Select Job Category"}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.dropdown, { borderColor: colors.primary }]}
-                    onPress={() => setDropdownType("type")}
-                  >
-                    <Text style={{ color: colors.text }}>
-                      {selectedJob.jobType || "Select Job Type"}
-                    </Text>
-                  </TouchableOpacity>
-                  <TextInput
-                    label="Description"
-                    mode="outlined"
-                    value={selectedJob.description ?? ""}
-                    multiline
-                    numberOfLines={4}
-                    onChangeText={(t) => handleFieldChange("description", t)}
-                    style={styles.input}
-                  />
+return (
+<SafeAreaView style={{ flex: 1, backgroundColor: colors.background,paddingHorizontal:6 }}>
+{/* COLLAPSIBLE HEADER CONTAINER */}
+<Animated.View
+style={[
+styles.headerContainer,
+{ transform: [{ translateY: headerTranslateY },] },
+{ backgroundColor: colors.background}
+]}
+>
+{/* HEADER */}
+<Animated.View style={{ opacity: headerOpacity, height: HEADER_MAX }}>
+<CustomHeader activeTab={activeTab} setActiveTab={setActiveTab} />
+</Animated.View>
 
-                  {/* Deadline Picker */}
-                  <TouchableOpacity
-                    style={[styles.input, { padding: 12 }]}
-                    onPress={() => setCalendarVisible(true)}
-                  >
-                    <Text
-                      style={{
-                        color: selectedJob.deadline
-                          ? colors.text
-                          : colors.text + "80",
-                      }}
-                    >
-                      {selectedJob.deadline
-                        ? selectedJob.deadline.toISOString().split("T")[0]
-                        : "Select Deadline"}
-                    </Text>
-                  </TouchableOpacity>
+{/* TABS - always visible, never collapses */}
+<View style={{ height: TABS_HEIGHT }}>
+<CustomHeaderTabs
+tabs={["Post", "News", "Trending"]}
+activeTab={activeTab}
+setActiveTab={setActiveTab}
+colors={colors}
+/>
+</View>
+</Animated.View>
 
-                  {calendarVisible && (
-                    <Calendar
-                      onDayPress={(day) => {
-                        handleFieldChange("deadline", new Date(day.dateString));
-                        setCalendarVisible(false);
-                      }}
-                      markedDates={{
-                        [selectedJob.deadline
-                          ? selectedJob.deadline
-                              .toISOString()
-                              .split("T")[0]
-                          : ""]: {
-                          selected: true,
-                          selectedColor: colors.primary,
-                        },
-                      }}
-                      theme={{
-                        todayTextColor: colors.primary,
-                        selectedDayBackgroundColor: colors.primary,
-                      }}
-                    />
-                  )}
+{/* MAIN CONTENT */}
+<View style={{ flex: 1 }}>
+{/* POST LIST */}
+<Animated.View
+style={{ flex: 1, display: activeTab === "Post" ? "flex" : "none" }}
+>
+<FlatList
+ref={recentListRef}
+data={feed.recent.posts}
+keyExtractor={(item) => item.id}
+contentContainerStyle={{
+paddingTop: HEADER_MAX + TABS_HEIGHT,
+paddingBottom: 60,
+}}
+refreshControl={
+<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+}
+onEndReached={loadMorePosts}
+onScroll={Animated.event(
+[{ nativeEvent: { contentOffset: { y: scrollY } } }],
+{
+useNativeDriver: false,
+listener: (event) => {
+const currentY = event.nativeEvent.contentOffset.y;
 
-                  {/* Flip Status */}
-                  <TouchableOpacity
-                    style={[
-                      styles.flipBtn,
-                      {
-                        backgroundColor:
-                         colors.primary
-                      },
-                    ]}
-                    onPress={flipStatus}
-                  >
-                    <Text style={styles.flipBtnText}>
-                      {selectedJob.status === "open"
-                        ? "Close Job"
-                        : "Reopen Job"}
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              )}
+scrollPositions.current[activeTab] = currentY;
 
-              <View style={styles.modalActions}>
-                <Button
-                  mode="outlined"
-                  onPress={() => setModalVisible(false)}
-                  disabled={saving}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  mode="contained"
-                  onPress={handleSave}
-                  loading={saving}
-                  style={{ backgroundColor: colors.primary }}
-                >
-                  Save
-                </Button>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+const diff = currentY - lastScrollY.current;
 
-      {/* Dropdown modal */}
-      <Modal visible={!!dropdownType} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setDropdownType(null)}
-        >
-          <View style={[styles.dropdownBox, { backgroundColor: colors.surface }]}>
-            <ScrollView>
-              {(dropdownType === "category" ? filters : jobOptions || []).map(
-                (opt) => (
-                  <TouchableOpacity
-                    key={opt}
-                    onPress={() => {
-                      handleFieldChange(
-                        dropdownType === "category" ? "jobCategory" : "jobType",
-                        opt
-                      );
-                      setDropdownType(null);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        { color: colors.text, padding: 10 },
-                      ]}
-                    >
-                      {opt}
-                    </Text>
-                  </TouchableOpacity>
-                )
-              )}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    </SafeAreaView>
-  );
+// User scrolls DOWN → hide header
+if (diff > 10 && currentY >0) {
+Animated.timing(headerAnim, {
+toValue: 1,
+duration: 10,
+useNativeDriver: true,
+}).start();
+}
+
+// User scrolls UP → show header
+if (diff < -30) {
+Animated.timing(headerAnim, {
+toValue: 0,
+duration: 10,
+useNativeDriver: true,
+}).start();
+}
+
+lastScrollY.current = currentY;
+},
+}
+)}  
+scrollEventThrottle={16}
+renderItem={renderPost}
+showsVerticalScrollIndicator={false}
+/>
+</Animated.View>
+
+{/* TRENDING LIST */}
+<Animated.View
+style={{ flex: 1, display: activeTab === "Trending" ? "flex" : "none" }}
+>
+<FlatList
+ref={trendingListRef}
+data={feed.trending.posts}
+keyExtractor={(item) => item.id}
+contentContainerStyle={{
+paddingTop: HEADER_MAX + TABS_HEIGHT,
+paddingBottom: 60,
+}}
+onEndReached={loadMorePosts}
+onScroll={Animated.event(
+[{ nativeEvent: { contentOffset: { y: scrollY } } }],
+{
+useNativeDriver: false,
+listener: (event) => {
+const currentY = event.nativeEvent.contentOffset.y;
+
+scrollPositions.current[activeTab] = currentY;
+
+const diff = currentY - lastScrollY.current;
+
+// User scrolls DOWN → hide header
+if (diff > 15 && currentY > 0) {
+Animated.timing(headerAnim, {
+toValue: 1,
+duration: 10,
+useNativeDriver: true,
+}).start();
+}
+
+// User scrolls UP → show header
+if (diff < -30) {
+Animated.timing(headerAnim, {
+toValue: 0,
+duration: 10,
+useNativeDriver: true,
+}).start();
+}
+
+lastScrollY.current = currentY;
+},
+}
+)}
+showsVerticalScrollIndicator={false}
+scrollEventThrottle={16}
+renderItem={renderPost}  
+/>
+</Animated.View>
+
+{/* NEWS LIST */}
+<Animated.View
+style={{ flex: 1, display: activeTab === "News" ? "flex" : "none" }}
+>
+<FlatList
+ref={newsListRef}
+data={news}
+keyExtractor={(item) => item.id}
+renderItem={renderNews}
+contentContainerStyle={{
+paddingTop: HEADER_MAX + TABS_HEIGHT/2,
+}}
+onEndReached={loadMoreNews}
+onScroll={Animated.event(
+[{ nativeEvent: { contentOffset: { y: scrollY } } }],
+{
+useNativeDriver: false,
+listener: (event) => {
+const currentY = event.nativeEvent.contentOffset.y;
+
+scrollPositions.current[activeTab] = currentY;
+
+const diff = currentY - lastScrollY.current;
+
+// User scrolls DOWN → hide header
+if (diff > 5 && currentY > 50) {
+Animated.timing(headerAnim, {
+toValue: 1,
+duration: 150,
+useNativeDriver: true,
+}).start();
+}
+
+// User scrolls UP → show header
+if (diff < -5) {
+Animated.timing(headerAnim, {
+toValue: 0,
+duration: 150,
+useNativeDriver: true,
+}).start();
+}
+
+lastScrollY.current = currentY;
+},
+}
+)}
+showsVerticalScrollIndicator={false}
+scrollEventThrottle={16}
+pagingEnabled
+snapToInterval={PAGE_HEIGHT}
+snapToAlignment="start"
+decelerationRate="fast"
+disableIntervalMomentum={true}
+/>
+</Animated.View>
+</View>
+
+
+{/* FAB */}
+{activeTab === "Post" && (
+<FAB
+icon="pencil"
+style={[styles.fab, { backgroundColor: colors.primary }]}
+onPress={() => navigation.navigate("AddPost")}
+color="#fff"
+/>
+)}
+</SafeAreaView>
+);
 };
 
 const styles = StyleSheet.create({
-  categoryContainer: { height: 50, marginBottom: 8 },
-  categoryChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-  },
-  listContent: { padding: 10 },
-  jobCard: {
-    marginBottom: 12,
-    borderRadius: 12,
-    elevation: 2,
-    position: "relative",
-  },
-  editIcon: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    zIndex: 10,
-    backgroundColor: "#ffffffaa",
-    padding: 6,
-    borderRadius: 20,
-  },
-  title: { fontSize: 15, fontWeight: "bold" },
-  subtitle: { fontSize: 13 },
-  deadline: { fontSize: 13, marginTop: 4 },
-  status: { fontSize: 13, marginTop: 2 },
-  emptyState: { alignItems: "center", justifyContent: "center", padding: 60 },
-  emptyTitle: { fontSize: 18, fontWeight: "bold", marginTop: 16 },
-  emptyMsg: { fontSize: 14, marginTop: 4, textAlign: "center" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "#00000088",
-    justifyContent: "center",
-    padding: 20,
-  },
-  modalContent: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    maxHeight: "80%",
-  },
-  modalTitle: { fontSize: 18, fontWeight: "600", marginBottom: 12 },
-  input: { marginBottom: 10 },
-  flipBtn: {
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginVertical: 8,
-    alignItems: "center",
-  },
-  flipBtnText: { color: "#fff", fontWeight: "600" },
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  dropdown: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
-  },
-  dropdownBox: {
-    borderRadius: 10,
-    padding: 15,
-    marginHorizontal: 20,
-  },
-  optionText: {
-    fontSize: 16,
-    paddingVertical: 6,
-  },
+headerContainer: {
+  position: "absolute",
+  left: 0,
+  right: 0,
+  top: 0,
+  zIndex: 20,
+ 
+},
+tweetContainer: {
+flexDirection: "row",   
+paddingVertical: 8,
+paddingRight: 6,
+marginVertical: 6,
+marginHorizontal:8,
+borderBottomWidth: 0.2,
+paddingHorizontal:8,
+
+
+},
+
+/* LEFT COLUMN (avatar + thread line) */
+threadColumn: {
+width: 50,
+alignItems: "center",
+},
+
+tweetAvatar: {
+width: 36,
+height: 36,
+borderRadius: 18,
+marginBottom: 4,
+},
+
+threadLine: {
+width: 1,
+flex: 1,
+borderWidth:0,
+
+marginTop: 4,
+marginBottom:4
+},
+
+/* RIGHT CONTENT */
+tweetContentSection: {
+flex: 1,
+marginLeft:4
+},
+
+tweetHeader: {
+flexDirection: "row",
+alignItems: "center",
+},
+
+tweetName: {
+fontWeight: "700",
+fontSize: 15,
+},
+
+tweetTime: {
+marginLeft: 6,
+fontSize: 13,
+fontWeight: "400",
+},
+
+tweetTagline: {
+fontSize: 12,
+marginTop: -2,
+marginBottom: 4,
+},
+
+tweetText: {
+marginTop: 4,
+fontSize: 16,
+lineHeight:22,
+fontWeight: "600",
+fontFamily: "Inter",
+
+},
+postContent: {
+marginVertical: 8,
+
+fontWeight: "700",
+fontSize: 15,
+lineHeight: 21,
+},
+readMore: {
+marginTop: 4,
+fontSize: 13,
+fontWeight: "600",
+},
+
+/* ACTION ROW */
+tweetActionsRow: {
+flexDirection: "row",
+alignItems: "center",
+marginTop: 12,
+},
+
+tweetAction: {
+flexDirection: "row",
+alignItems: "center", 
+marginRight: 18,
+},
+
+tweetActionText: {
+marginLeft: 6,
+fontSize: 16,
+fontWeight: "600",
+},
+
+fab: {
+position: "absolute",  
+bottom: 100,
+right: 20,
+zIndex: 100,
+},
 });
 
-export default HomeScreenComp;
+export default HomeScreenUser;
