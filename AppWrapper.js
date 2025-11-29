@@ -68,7 +68,7 @@ import { listenToNotifications } from "./src/store/notificationsSlice";
 import { listenToUnreadCount } from "./src/services/chatService";
 import { navigationRef, navigate } from "./src/utils/navigationService";
 import NotificationsScreen from "./src/screens/NotificationScreen";
-
+import PendingVerificationScreen from './src/screens/PendingVerificationScreen'
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
 const { width: screenWidth } = Dimensions.get("window");
@@ -97,80 +97,77 @@ const MainDrawer = () => {
 };
 
 // ---------------- Authenticated Flow ----------------
-const AppStack = ({ userData }) => (
-  <Stack.Navigator
-    screenOptions={{
-      headerShown: false,
-      gestureEnabled: false,
-      transitionSpec: {
-        open: { animation: "timing", config: { duration: 320, easing: Easing.out(Easing.poly(5)) } },
-        close: { animation: "timing", config: { duration: 300, easing: Easing.in(Easing.poly(4)) } },
-      },
-      cardStyleInterpolator: CardStyleInterpolators.forFadeFromBottomAndroid,
-    }}
-  >
-    {userData?.hasChecked ? (
-      <Stack.Screen name="MainApp" component={MainDrawer} />
-    ) : (
-      <>
-        <Stack.Screen name="ProfessionSelectPage" component={ProfessionSelectPage} />
-        <Stack.Screen name="UserDetailsPage" component={UserDetailsPage} />
-        <Stack.Screen name="CompanyVerificationPage" component={CompanyVerificationPage} />
+const AppStack = ({ userData }) => {
+  const isUser = userData?.userType != "company";  // <- identify normal user
+  const isVerified = userData?.isUserVerified === true;
+  const hasChecked = userData?.hasChecked === true;
+
+  const shouldShowPending =
+    isUser && !isVerified; // Only for normal users
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true,
+        cardStyleInterpolator: CardStyleInterpolators.forFadeFromBottomAndroid,
+      }}
+    >
+      {/* 🔥 CASE 1: Normal user but NOT verified */}
+      {shouldShowPending ? (
+        <>
+         <Stack.Screen
+          name="PendingVerification"
+          component={PendingVerificationScreen}
+        />
+          <Stack.Screen name="UserDetailsPage" component={UserDetailsPage} />
+        
+        </>
+       
+      ) : hasChecked ? (
+        /* 🔥 CASE 2: Profile completed */
         <Stack.Screen name="MainApp" component={MainDrawer} />
-      </>
-    )}
+      ) : (
+        /* 🔥 CASE 3: Needs onboarding steps */
+        <>
+          <Stack.Screen name="ProfessionSelectPage" component={ProfessionSelectPage} />
+          <Stack.Screen name="UserDetailsPage" component={UserDetailsPage} />
+          <Stack.Screen name="CompanyVerificationPage" component={CompanyVerificationPage} />
+          <Stack.Screen name="MainApp" component={MainDrawer} />
+        </>
+      )}
 
-    {/* Other screens accessible after login */}
-    <Stack.Screen name="AddPost" component={CreatePostScreen} />
-    <Stack.Screen name="Profile" component={ProfileScreen} />
-    <Stack.Screen name="MindGrow" component={MindGrow} />
-    <Stack.Screen name="StudyScreen" component={StudyScreen} />
-    <Stack.Screen name="ChatScreen" component={ChatScreen} />
-    <Stack.Screen name="EditProfilePage" component={EditProfileScreen} />
-    <Stack.Screen name="EditCompProfilePage" component={EditCompProfileScreen} />
-
-
-    
-    <Stack.Screen name="Comments" component={CommentScreen} />
-    <Stack.Screen name="Notifications" component={NotificationsScreen} />
-
-    <Stack.Screen name="GroupChats" component={GroupChatScreen} />
-    <Stack.Screen name="Bookmark" component={BookmarkScreen} />
-    <Stack.Screen name="ExpertonScreen" component={ExpertonScreen} />
-    <Stack.Screen name="JobPost" component={PostJobScreen} />
-    <Stack.Screen name="Message" component={MessageScreen} />
-    <Stack.Screen name="ThemeSelect" component={ThemeScreen} />
-    <Stack.Screen name="AcceptRequest" component={AcceptRequestScreen} />
-    <Stack.Screen name="Settings" component={Settings} />
-    <Stack.Screen name="OtherProfile" component={OtherProfilePage} />
-    <Stack.Screen name="CompanyVerificationPageNew" component={CompanyVerificationPage} />
-    <Stack.Screen name="BookServiceScreen" component={BookServiceScreen} />
-    <Stack.Screen name="Bookings" component={BookingScreen} />
-    <Stack.Screen name="Support" component={SupportScreen} />
-    <Stack.Screen name="FAQ" component={FAQ} />
-    <Stack.Screen name="About" component={About} />
-    <Stack.Screen name="Following" component={FollowingScreen} />
-    <Stack.Screen name="Applied" component={AppliedJobsScreen} />
-    <Stack.Screen name="AllGroupScreen" component={AllGroupScreen} />
-
-    <Stack.Screen name="Candidates" component={CandidatesScreen} />
-
-
-    
-
-
-
-
-
-    
-
-
-
-
-
-
-  </Stack.Navigator>
-);
+      {/* 🔥 Other screens */}
+      <Stack.Screen name="AddPost" component={CreatePostScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="MindGrow" component={MindGrow} />
+      <Stack.Screen name="StudyScreen" component={StudyScreen} />
+      <Stack.Screen name="ChatScreen" component={ChatScreen} />
+      <Stack.Screen name="EditProfilePage" component={EditProfileScreen} />
+      <Stack.Screen name="EditCompProfilePage" component={EditCompProfileScreen} />
+      <Stack.Screen name="Comments" component={CommentScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="GroupChats" component={GroupChatScreen} />
+      <Stack.Screen name="Bookmark" component={BookmarkScreen} />
+      <Stack.Screen name="ExpertonScreen" component={ExpertonScreen} />
+      <Stack.Screen name="JobPost" component={PostJobScreen} />
+      <Stack.Screen name="Message" component={MessageScreen} />
+      <Stack.Screen name="ThemeSelect" component={ThemeScreen} />
+      <Stack.Screen name="AcceptRequest" component={AcceptRequestScreen} />
+      <Stack.Screen name="Settings" component={Settings} />
+      <Stack.Screen name="OtherProfile" component={OtherProfilePage} />
+      <Stack.Screen name="CompanyVerificationPageNew" component={CompanyVerificationPage} />
+      <Stack.Screen name="BookServiceScreen" component={BookServiceScreen} />
+      <Stack.Screen name="Bookings" component={BookingScreen} />
+      <Stack.Screen name="Support" component={SupportScreen} />
+      <Stack.Screen name="FAQ" component={FAQ} />
+      <Stack.Screen name="About" component={About} />
+      <Stack.Screen name="Following" component={FollowingScreen} />
+      <Stack.Screen name="Applied" component={AppliedJobsScreen} />
+      <Stack.Screen name="AllGroupScreen" component={AllGroupScreen} />
+      <Stack.Screen name="Candidates" component={CandidatesScreen} />
+    </Stack.Navigator>
+  );
+};
 
 // ---------------- Unauthenticated Flow ----------------
 const AuthStack = () => (
@@ -209,6 +206,8 @@ useEffect(() => {
 }, []);
   useEffect(() => {
     if (!authUser) return;
+  console.log(userData)
+
     const unsubscribe = listenToUnreadCount(authUser?.uid, dispatch);
     return () => unsubscribe && unsubscribe();
   }, [authUser]);
