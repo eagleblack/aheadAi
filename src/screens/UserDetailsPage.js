@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+
 import {
   View,
   Text,
@@ -83,7 +84,8 @@ const ThemedTextInput = ({ style, ...props }) => {
 
 const UserDetailsPage = ({ navigation,route }) => {
   const { colors } = useTheme();
-const { label, value } = route.params;
+const label = route?.params?.label || null;
+const value = route?.params?.value || null;
 
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
@@ -92,6 +94,33 @@ const { label, value } = route.params;
   const [education, setEducation] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+  const fetchProfile = async () => {
+    try {
+      const user = auth().currentUser; 
+      if (!user) return;
+
+      const doc = await firestore()
+        .collection("users")
+        .doc(user.uid)
+        .get();
+
+      if (doc.exists) {
+        const data = doc.data();
+
+        if (data.name) setName(data.name);
+        if (data.dob) setDob(data.dob);
+        if (data.bio) setBio(data.bio);
+        if (Array.isArray(data.education)) setEducation(data.education);
+        if (Array.isArray(data.experiences)) setExperiences(data.experiences);
+      }
+    } catch (err) {
+      console.log("Profile load error:", err);
+    }
+  };
+
+  fetchProfile();
+}, []);
   // ---------------- Experience ----------------
   const addExperience = () => {
     setExperiences([
@@ -184,41 +213,63 @@ const { label, value } = route.params;
   };
 
   // ---------------- Save to Firestore ----------------
-  const saveDetails = async () => {
-    try {
-      const user = auth().currentUser;
-      if (!user) {
-        Alert.alert("Error", "No user logged in.");
-        return;
-      }
-
-      const username =
-        name.trim().replace(/\s+/g, "-").toLowerCase() +
-        "-" +
-        Math.floor(Math.random() * 10000);
-
-      const userData = {
-        name,
-        dob,
-        bio,
-        education,
-        experiences,
-        username,
-        label,
-        value,
-        hasChecked: true, // 🔹 Add hasChecked when saving
-      };
-
-      await firestore().collection("users").doc(user.uid).set(userData, { merge: true });
-
-      console.log("User saved:", userData);
-      navigation.navigate("MainApp");
-    } catch (err) {
-      console.error("Firestore save error:", err);
-      Alert.alert("Error", "Could not save user details.");
+ const saveDetails = async () => {
+  try {
+    // ✅ HARD VALIDATION
+    if (!name.trim()) {
+      Alert.alert("Validation Error", "Full name is required.");
+      return;
     }
-  };
 
+    if (!education.length || !education[0].degree || !education[0].institution) {
+      Alert.alert(
+        "Education Required",
+        "Please add at least one education record with Degree and Institution."
+      );
+      return;
+    }
+
+    const user = auth().currentUser;
+    if (!user) {
+      Alert.alert("Error", "No user logged in.");
+      return;
+    }
+
+    const userDoc = await firestore().collection("users").doc(user.uid).get();
+
+    const username =
+      userDoc.exists && userDoc.data().username
+        ? userDoc.data().username
+        : name.trim().replace(/\s+/g, "-").toLowerCase() + "-" + Math.floor(Math.random() * 10000);
+
+    const userData = {
+      name,
+      dob,
+      bio,
+      education,
+      experiences,
+      username,
+      hasChecked: true,
+      verificationRequested: true,
+      verificationRequestedAt: firestore.FieldValue.serverTimestamp(),
+    };
+
+    // ✅ Only write label/value if provided
+    if (label !== null) userData.label = label;
+    if (value !== null) userData.value = value;
+
+    await firestore()
+      .collection("users")
+      .doc(user.uid)
+      .set(userData, { merge: true });
+
+    Alert.alert("✅ Request Sent", "Verification request submitted successfully.");
+    navigation.navigate("PendingVerification");
+  } catch (err) {
+    console.error("Firestore save error:", err);
+    Alert.alert("Error", "Could not submit verification request.");
+  }
+};
   // ---------------- Skip Button ----------------
   const skip = async () => {
     try {
@@ -246,11 +297,7 @@ const { label, value } = route.params;
       style={{ flex: 1, backgroundColor: colors.background }}
     >
       {/* Top-right Skip button */}
-      <View style={styles.topRightButton}>
-        <TouchableOpacity onPress={skip}>
-          <Text style={{ color: colors.primary, fontWeight: "600" }}>Skip</Text>
-        </TouchableOpacity>
-      </View>
+      
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -266,7 +313,7 @@ const { label, value } = route.params;
         >
           {/* Page Title */}
           <Text style={[styles.title, { color: colors.text }]}>
-            Tell Us About You
+            Request Verification
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             Fill in your personal details and upload your resume for auto-fill
@@ -463,7 +510,7 @@ const { label, value } = route.params;
               color: colors.surface,
             }}
           >
-            Save & Continue
+          Request Verification
           </Button>
         </ScrollView>
       </KeyboardAvoidingView>
