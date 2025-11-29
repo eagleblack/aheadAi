@@ -47,7 +47,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const BOTTOM_TAB_HEIGHT = 60;
 const PAGE_HEIGHT = SCREEN_HEIGHT - BOTTOM_TAB_HEIGHT;
 
-const HEADER_MAX = 60;
+const HEADER_MAX = 50;
 const TABS_HEIGHT = 50;
 
 const HomeScreenUser = () => {
@@ -104,7 +104,13 @@ else if (activeTab === "Trending") await dispatch(fetchTrendingPosts());
 else await dispatch(fetchRecentPosts());
 setRefreshing(false);
 };
-
+Text.render = (function (render) {
+  return function (...args) {
+    let originText = render.apply(this, args);
+    console.log("Font Family used:", originText.props.style?.fontFamily);
+    return originText;
+  };
+})(Text.render);
 // Pagination
 const loadMorePosts = () => {
 const data = activeTab === "Trending" ? feed.trending : feed.recent;
@@ -538,11 +544,11 @@ headerContainer: {
 },
 tweetContainer: {
 flexDirection: "row",   
-paddingVertical: 12,
+paddingVertical: 8,
 paddingRight: 6,
 marginVertical: 6,
 marginHorizontal:8,
-borderBottomWidth: 0.3,
+borderBottomWidth: 0.2,
 paddingHorizontal:8,
 
 
@@ -600,10 +606,11 @@ marginBottom: 4,
 
 tweetText: {
 marginTop: 4,
-fontSize: 15,
-lineHeight: 21,
-fontWeight: "700",
-fontFamily: "Inter-Variable",
+fontSize: 16,
+lineHeight:22,
+fontWeight: "600",
+fontFamily: "Inter",
+
 },
 postContent: {
 marginVertical: 8,
@@ -627,7 +634,7 @@ marginTop: 12,
 
 tweetAction: {
 flexDirection: "row",
-alignItems: "center",
+alignItems: "center", 
 marginRight: 18,
 },
 
@@ -638,7 +645,7 @@ fontWeight: "600",
 },
 
 fab: {
-position: "absolute",
+position: "absolute",  
 bottom: 100,
 right: 20,
 zIndex: 100,
