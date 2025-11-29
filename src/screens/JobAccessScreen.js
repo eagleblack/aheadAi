@@ -11,7 +11,7 @@ import {
   Modal,
 } from "react-native";
 import { TextInput, Button, Card } from "react-native-paper";
-import Icon from "@react-native-vector-icons/material-icons";
+import Icon from "react-native-vector-icons/MaterialIcons";
 import { useTheme } from "../context/ThemeContext";
 import { pick, types } from "@react-native-documents/picker";
 import RNFS from "react-native-fs";
@@ -39,7 +39,20 @@ const JobAccessScreen = ({ navigation }) => {
     jobCategory: job.jobCategory || "",
     jobType: job.jobType || "",
   });
+const today = new Date();
+const formatDate = (d) => d.toISOString().split("T")[0];
 
+// Max allowed deadline = today + 15 days
+const getMaxDeadline = () => {
+  const max = new Date();
+  max.setDate(today.getDate() + 15);
+  return formatDate(max);
+};
+
+const maxDeadline = getMaxDeadline();
+const todayStr = formatDate(today);
+
+const [deadline, setDeadline] = useState(null);
   const handleUploadExcel = async () => {
     try {
       setLoading(true);
@@ -163,7 +176,7 @@ const JobAccessScreen = ({ navigation }) => {
           avatar: userData?.profilePic || null,
           companyId: userData?.uid,
           status: "open",
-          createdAt: serverTimestamp(),
+          createdAt: FieldValue.ServerTimestamp(),
         });
       });
 
@@ -362,7 +375,7 @@ const JobAccessScreen = ({ navigation }) => {
                         onPress={() => setCalendarVisible(index)}
                       >
                         <Text style={{ color: value ? colors.text : colors.text + "80" }}>
-                          {value || "Select Deadline"}
+                          {value || "Select Deadline Maximum 15 days from today"}
                         </Text>
                       </TouchableOpacity>
                       {calendarVisible === index && (
@@ -370,10 +383,12 @@ const JobAccessScreen = ({ navigation }) => {
                           onDayPress={(day) => {
                             handleJobChange(index, "deadline", new Date(day.dateString));
                             setCalendarVisible(null);
-                          }}
+                          }} 
                           markedDates={{
                             [value]: { selected: true, selectedColor: colors.primary },
                           }}
+                          minDate={todayStr}
+                          maxDate={maxDeadline} // prevents selecting dates beyond 15 days
                           theme={{
                             todayTextColor: colors.primary,
                             selectedDayBackgroundColor: colors.primary,
