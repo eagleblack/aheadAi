@@ -2,63 +2,64 @@ import React, { useEffect, useState } from "react";
 import { Image, View, StyleSheet, ActivityIndicator, Dimensions } from "react-native";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const MAX_HEIGHT = 400; // like LinkedIn posts
+const MAX_HEIGHT = 400; // like LinkedIn
 
 const FullWidthImage = ({ uri, borderRadius = 8, resizeMode = "contain" }) => {
-  const [aspectRatio, setAspectRatio] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [aspectRatio, setAspectRatio] = useState(null);
 
   useEffect(() => {
     if (uri) {
       Image.getSize(
         uri,
-        (width, height) => {
-          setAspectRatio(width / height);
-          setLoading(false);
-        },
-        () => {
-          setAspectRatio(1);
-          setLoading(false);
-        }
+        (width, height) => setAspectRatio(width / height),
+        () => setAspectRatio(1)
       );
     }
   }, [uri]);
 
   if (!uri) return null;
 
-  const calculatedHeight = Math.min(SCREEN_WIDTH / aspectRatio, MAX_HEIGHT);
+  // Still loading image dimensions
+  if (aspectRatio === null) {
+    return (
+      <View style={[styles.loaderWrapper, { borderRadius }]}>
+        <ActivityIndicator size="small" color="#888" />
+      </View>
+    );
+  }
+
+  const isPortrait = aspectRatio < 1;
+
+  const calculatedHeight = isPortrait
+    ? Math.min(SCREEN_WIDTH / aspectRatio, MAX_HEIGHT)
+    : SCREEN_WIDTH / aspectRatio;
 
   return (
-    <View style={[styles.container, { borderRadius }]}>
-      {loading ? (
-        <View style={[styles.loader, { height: MAX_HEIGHT, borderRadius }]}>
-          <ActivityIndicator size="small" color="#888" />
-        </View>
-      ) : (
+    <View style={{ marginVertical: 2 }}>
+      <View style={[styles.imageWrapper, { borderRadius }]}>
         <Image
           source={{ uri }}
-          style={[styles.image, { height: calculatedHeight, borderRadius }]}
-          resizeMode={resizeMode}
+          style={{ width: "100%", height: calculatedHeight, borderRadius }}
+          resizeMode={"cover"}
         />
-      )}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  imageWrapper: {
     width: "100%",
     overflow: "hidden",
-    marginVertical: 10,
+    marginVertical:2
   },
-  loader: {
+  loaderWrapper: {
+    width: "100%",
+    height: MAX_HEIGHT,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f0f0f0",
-    width: "100%",
-  },
-  image: {
-    width: "100%",
+    marginVertical: 2,
   },
 });
 
