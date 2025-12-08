@@ -4,61 +4,49 @@ import auth from '@react-native-firebase/auth';
 import { getChatId } from "../services/chatService";
 const COMPANY_SWIPE_WINDOW_DAYS = 15;
 const JOBS_PER_PAGE = 30;
-
+import axios from 'axios';
 const sendMatchMessages = async (chatId, userId, companyId, job) => {
   const ref = firestore().collection("chats").doc(chatId);
-
   const chatDoc = await ref.get();
 
-  // 🔹 If chat does NOT exist → create new one
-  if (!chatDoc.exists) {
-    await ref.set(
-      {
-        participants: [companyId, userId],
-        status: "ACCEPTED",
-        requestedBy: companyId,
-        acceptedBy: companyId,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        lastMessage: {
-          text: `User showed interest in ${job.title}`,
-          from: userId,
-          sentOn: FieldValue.serverTimestamp(),
-          status:'UNREAD',
-        },
+  if (!chatDoc.exists()) {
+    await ref.set({
+      participants: [companyId, userId],
+      status: "ACCEPTED",
+      requestedBy: companyId,
+      acceptedBy: companyId,
+
+      isJobMessage: true,
+      jobId: job.id,
+      jobTitle: job.title,
+
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+
+      lastMessage: {
+        text: `Hey, can I get more info about ${job.title}?`,
+        from: userId,
+        sentOn: FieldValue.serverTimestamp(),
+        status:'UNREAD',
       },
-      { merge: true }
-    );
-  }
+    });
 
-  // 🔹 Add first 2 messages (Company + User)
-  await ref.collection("messages").add({
-    from: companyId,
-    to: userId,
-    text: `User swiped for your job: ${job.title}`,
-    type: "MESSAGE",
-    sentOn: FieldValue.serverTimestamp(),
-  });
-
-  await ref.collection("messages").add({
-    from: userId,
-    to: companyId,
-    text: `Hey, can I get more info about ${job.title}?`,
-    type: "MESSAGE",
-    sentOn: FieldValue.serverTimestamp(),
-    
-  });
-
-  // 🔹 Update chat metadata
-  await ref.update({
-    lastMessage: {
-      text: `Hey, can I get more info about ${job.title}?`,
-      from: userId,
+    await ref.collection("messages").add({
+      from: companyId,
+      to: userId,
+      text: `User swiped for your job: ${job.title}`,
+      type: "MESSAGE",
       sentOn: FieldValue.serverTimestamp(),
-      status:'UNREAD',
-    },
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+    });
+
+    await ref.collection("messages").add({
+      from: userId,
+      to: companyId,
+      text: `Hey, can I get more info about ${job.title}?`,
+      type: "MESSAGE",
+      sentOn: FieldValue.serverTimestamp(),
+    });
+  }
 };
 // 🔹 Fetch jobs paginated
 
@@ -246,22 +234,30 @@ export const swipeJob = createAsyncThunk(
       console.log("✅ Batch committed successfully");
 
       console.log("🏢 Checking if company already swiped this user...");
-      const companySwipeDoc = await firestore()
-        .collection("users")
-        .doc(job.companyId)
-        .collection("swipedUsers")
-        .doc(user.uid)
-        .get();
-
-      if (companySwipeDoc.exists) {
-        console.log("💫 MATCH FOUND! Sending match messages...");
-        const chatId = getChatId(user.uid, job.companyId);
+      if(direction=="right"){
+console.log("💫 MATCH FOUND! Sending match messages...");
+        const chatId = getChatId(user.uid, job.id);
         await sendMatchMessages(chatId, user.uid, job.companyId, job);
         console.log("💌 Match messages sent!");
-      } else {
-        console.log("🙅 No company swipe found yet.");
+     
+    console.log('Sending notification to Cloud Function...');
+    const response = await axios.post(
+      'https://us-central1-ahead-9fb4c.cloudfunctions.net/notifyMessageApi/send-message-notification',
+      {
+        receiverId: job.companyId,
+        senderId: user.uid,
+        senderUsername:user?.username??'Ahead user',
+        message: "A new user Applied for Job",
+        chatId,
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 10000, // 10 seconds
       }
-
+    );
+  
+      }
+        
       console.log("✅ swipeJob completed for jobId:", job.id);
       return { jobId: job.id, direction };
     } catch (error) {
