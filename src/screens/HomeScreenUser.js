@@ -25,6 +25,7 @@ import FullWidthImage from "../components/FullWidthImage";
 import NewsCard from "../components/NewsCard";
 import { timeAgo } from "../utils/time";
 import { Animated } from "react-native";
+import { Avatar } from "react-native-paper";
 
 import {
 fetchTrendingPosts,
@@ -177,137 +178,126 @@ dispatch(toggleBookmark(post));
 const renderPost = useCallback(
 ({ item }) => {
 const isExpanded = expanded[item.id] || false;
-const contentPreview =
+const displayText =
 item.content?.length > 120 && !isExpanded
 ? item.content.slice(0, 120) + "..."
 : item.content;
 
 return (
-<View style={[styles.tweetContainer,{ borderBottomColor: colors.text,}]}>
-
-{/* Left Thread Line */}
-<TouchableOpacity
-style={styles.threadColumn}
-onPress={() =>
+  <View style={[styles.postContainer, { borderBottomColor: colors.surface }]}>
+        {/* HEADER ROW */}
+        <TouchableOpacity style={styles.headerRow} onPress={() =>
 item?.user.uid === userData.uid
 ? navigation.navigate("Profile")
 : navigation.navigate("OtherProfile", { uid: item?.user.uid })
-}
->
-<Image source={{ uri: item.user.avatar }} style={styles.tweetAvatar} />
-<View style={[styles.threadLine,{borderColor:colors.text}]} />
-</TouchableOpacity>
+}>
+          <Avatar.Image size={40} source={{ uri: item.user.avatar }} />
 
-{/* Right Content */}
-<View style={styles.tweetContentSection}>
+          <View style={styles.userInfo}>
+            <Text style={[styles.userName, { color: colors.text }]}>
+              {item.user.name}
+            </Text>
 
-{/* Header */}
-<TouchableOpacity
-style={styles.tweetHeader}
-onPress={() =>
-item?.user.uid === userData.uid
-? navigation.navigate("Profile")
-: navigation.navigate("OtherProfile", { uid: item?.user.uid })
-}
->
-<Text style={[styles.tweetName, { color: colors.text }]}>
-{item.user.name}
-</Text>
-<Text style={[styles.tweetTime, { color: colors.textSecondary }]}>
-· {timeAgo(item.createdAt)}
-</Text>
-</TouchableOpacity>
+            <Text style={[styles.userTagline, { color: colors.textSecondary }]}>
+              {item.user.tagline}
+            </Text>
+          </View>
 
-{/* Tagline */}
-<Text
-style={[styles.tweetTagline, { color: colors.textSecondary }]}
->
-{item.user?.tagline ?? "New on Ahead"}
-</Text>
+          <Text style={[styles.timeAgo, { color: colors.textSecondary }]}>
+            {timeAgo(item.createdAt)}
+          </Text>
+        </TouchableOpacity>
 
-{/* Content + Links */}
-{item.content && (
-<Hyperlink
-linkStyle={{ color: colors.link, textDecorationLine: "underline" }}
-onPress={(url) => Linking.openURL(url)}
->
-<Text style={[styles.tweetText, { color: colors.text }]}>
-{contentPreview}
-</Text>
-</Hyperlink>
-)}
+        {/* TEXT CONTENT */}
+        {item.content && (
+          <Hyperlink
+            linkStyle={{
+              color: colors.link,
+              textDecorationLine: "underline",
+            }}
+            onPress={(url) => Linking.openURL(url)}
+          >
+            <Text
+              style={[styles.postContent, { color: colors.text }]}
+            >
+              {displayText}
+            </Text>
+          </Hyperlink>
+        )}
 
-{/* Read more */}
-{item.content?.length > 120 && (
-<TouchableOpacity
-onPress={() =>
-setExpanded((prev) => ({ ...prev, [item.id]: !isExpanded }))
-}
->
-<Text style={[styles.readMore, { color: colors.primary }]}>
-{isExpanded ? "Read less" : "Read more"}
-</Text>
-</TouchableOpacity>
-)}
+        {/* READ MORE */}
+        {item.content?.length > 120 && (
+          <TouchableOpacity
+            onPress={() =>
+              setExpanded((prev) => ({
+                ...prev,
+                [item.id]: !isExpanded,
+              }))
+            }
+          >
+            <Text style={[styles.readMore, { color: colors.primary }]}>
+              {isExpanded ? "Read less" : "Read more"}
+            </Text>
+          </TouchableOpacity>
+        )}
 
-{/* Image */}
-{item.imageUrl && (
-<FullWidthImage uri={item.imageUrl} resizeMode="contain" />
-)}
+        {/* IMAGE */}
+        {item.imageUrl && (
+          <FullWidthImage uri={item.imageUrl} resizeMode="contain" />
+        )}
 
-{/* Actions */}
-<View style={styles.tweetActionsRow}>
-{/* Like */}
-<TouchableOpacity
-style={styles.tweetAction}
-onPress={() => handleLike(item)}
->
-<Icon
-name={item.likedByCurrentUser ? "favorite" : "favorite-border"}
-size={24}
-color={
-item.likedByCurrentUser ? colors.primary : colors.textSecondary
-}
-/>
-<Text style={[styles.tweetActionText, { color: colors.text }]}>
-{item.totalLikes || 0}
-</Text>
-</TouchableOpacity>
+        {/* ACTION BAR */}
+        <View style={styles.actionRow}>
+          {/* LIKE */}
+          <TouchableOpacity
+            style={styles.actionItem}
+            onPress={() => handleLike(item)}
+          >
+            <Icon
+              name={item.likedByCurrentUser ? "favorite" : "favorite-border"}
+              size={24}
+              color={
+                item.likedByCurrentUser
+                  ? colors.primary
+                  : colors.textSecondary
+              }
+            />
+            <Text style={[styles.actionText, { color: colors.text }]}>
+              {item.totalLikes}
+            </Text>
+          </TouchableOpacity>
 
-{/* Comment */}
-<TouchableOpacity
-style={styles.tweetAction}
-onPress={() =>
-navigation.navigate("Comments", {
-postId: item.id,
-creatorId: item.userId,
-})
-}
->
-<Icon
-name="chat-bubble-outline"
-size={24}
-color={colors.textSecondary}
-/>
-<Text style={[styles.tweetActionText, { color: colors.text }]}>
-{item.totalComments || 0}
-</Text>
-</TouchableOpacity>
+          {/* COMMENTS */}
+          <TouchableOpacity
+            style={styles.actionItem}
+            onPress={() =>
+              navigation.navigate("Comments", {
+                postId: item.id,
+                creatorId: item.userId,
+              })
+            }
+          >
+            <Icon
+              name="chat-bubble-outline"
+              size={24}
+              color={colors.textSecondary}
+            />
+            <Text style={[styles.actionText, { color: colors.text }]}>
+              {item.totalComments}
+            </Text>
+          </TouchableOpacity>
 
-{/* Share */}
-<Icon
-name="share"
-size={24}
-color={colors.textSecondary}
-style={{ marginLeft: 10 }}
-/>
+          {/* SHARE */}
+          <TouchableOpacity style={styles.actionItem}>
+            <Icon name="share" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
 
-{/* Bookmark (Right aligned) */}
-<TouchableOpacity
-style={{ marginLeft: "auto" }}
-onPress={() => handleBookmark(item)}
->
-<Icon
+          {/* BOOKMARK */}
+          <TouchableOpacity
+            style={styles.actionItem}
+            onPress={() => handleBookmark(item)}
+          >
+          <Icon
 name={
 item.bookmarkedByCurrentUser ? "bookmark" : "bookmark-border"
 }
@@ -318,10 +308,9 @@ item.bookmarkedByCurrentUser
 : colors.textSecondary
 }
 />
-</TouchableOpacity>
-</View>
-</View>
-</View>
+          </TouchableOpacity>
+        </View>
+      </View>
 );
 },
 [colors, expanded, handleBookmark, handleLike, navigation, userData.uid]
@@ -650,6 +639,56 @@ bottom: 100,
 right: 20,
 zIndex: 100,
 },
+
+  /* POST STYLE */
+  postContainer: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  userInfo: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  userName: { fontSize: 15, fontWeight: "600" },
+  userTagline: { fontSize: 12, marginTop: 1 },
+  timeAgo: { fontSize: 12 },
+
+  postContent: {
+    marginTop: 6,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: 600,
+    fontFamily: "Inter",
+  },
+
+  readMore: {
+    fontSize: 14,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+
+  /* ACTION BAR */
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+  },
+  actionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 20,
+  },
+  actionText: {
+    fontSize: 13,
+    marginLeft: 6,
+  },
 });
 
 export default HomeScreenUser;
