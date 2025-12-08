@@ -11,8 +11,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  TouchableWithoutFeedback,
 } from "react-native";
-import Icon from "@react-native-vector-icons/material-icons";
+import Icon from "react-native-vector-icons/MaterialIcons";
 import { useTheme } from "../context/ThemeContext";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -29,7 +30,6 @@ import {
   markChatAsRead,
 } from "../services/chatService";
 import auth from "@react-native-firebase/auth";
-import { addNewMessage } from "../store/chatSlice";
 
 const DUMMY_PROFILE_PIC = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
@@ -41,7 +41,7 @@ const MessageScreen = () => {
 
   const { otherUserId, otherUserName = "Ahead User", otherUserAvatar = DUMMY_PROFILE_PIC } = route.params || {};
   const currentUserId = auth().currentUser?.uid;
-  const chatId = getChatId(currentUserId, otherUserId);
+  const chatId = route.params.chatId??getChatId(currentUserId, otherUserId);
 
   const { user: userData } = useSelector((state) => state.user);
   const chat = useSelector((state) => state.chat.chats[chatId]);
@@ -51,76 +51,55 @@ const MessageScreen = () => {
   const isRequester = requestedBy === String(currentUserId);
 
   const flatListRef = useRef();
-  const hasScrolledInitially = useRef(false);
+  //const hasScrolledInitially = useRef(false);
 
   const [newMessage, setNewMessage] = useState("");
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   // 🔹 Initialize chat
-useEffect(() => {
-  let unsubMessages, unsubStatus;
-
-  const init = async () => {
-    await fetchInitialMessages(chatId, dispatch);
-    unsubMessages = listenToMessages(chatId, dispatch);
-    unsubStatus = listenToChatStatus(chatId, dispatch);
-
-    // ✅ Mark chat as read once opened
-    setTimeout(() => {
-      markChatAsRead(chatId);
-    }, 600);
-  };
-
-  init();
-
-  return () => {
-    unsubMessages && unsubMessages();
-    unsubStatus && unsubStatus();
-  };
-}, [chatId, dispatch]);
-
-  // 🔹 Scroll to bottom on first render or new incoming messages
   useEffect(() => {
-    if (flatListRef.current && messages.length) {
-      const lastMsg = messages[0]; // inverted
-      const shouldScroll = !hasScrolledInitially.current || (lastMsg && lastMsg.from !== currentUserId);
-      if (shouldScroll) {
-        flatListRef.current.scrollToOffset({ offset: 0, animated: true });
-        hasScrolledInitially.current = true;
-      }
-    }
-  }, [messages.length]);
+    let unsubMessages, unsubStatus;
 
-  // 🔹 Keyboard listeners
-  useEffect(() => {
-    const showSub = Keyboard.addListener("keyboardDidShow", (e) => setKeyboardHeight(e.endCoordinates.height));
-    const hideSub = Keyboard.addListener("keyboardDidHide", () => setKeyboardHeight(0));
-    return () => {
-      showSub.remove();
-      hideSub.remove();
+    const init = async () => {
+      await fetchInitialMessages(chatId, dispatch);
+      unsubMessages = listenToMessages(chatId, dispatch);
+      unsubStatus = listenToChatStatus(chatId, dispatch);
+
+      setTimeout(() => {
+        markChatAsRead(chatId);
+      }, 600);
     };
-  }, []);
+
+    init();
+
+    return () => {
+      unsubMessages && unsubMessages();
+      unsubStatus && unsubStatus();
+    };
+  }, [chatId, dispatch]);
+
+  // 🔹 Auto scroll for new messages
+ useEffect(() => {
+  if (!flatListRef.current || !messages.length) return;
+
+  requestAnimationFrame(() => {
+    flatListRef.current.scrollToOffset({
+      offset: 0,
+      animated: true,
+    });
+  });
+}, [messages]);
 
   // 🔹 Send message
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
-    const senderUsername=userData?.name || "Ahead User"
+    const senderUsername = userData?.name || "Ahead User";
     const text = newMessage.trim();
-    const optimisticMessage = {
-      id: Date.now().toString(),
-      from: currentUserId,
-      to: otherUserId,
-      text,
-      type: "MESSAGE",
-      sentOn: { toMillis: () => Date.now() },
-    };
-    // dispatch(addNewMessage({ chatId, message: optimisticMessage }));
 
     if (!chatStatus) {
-      await startChat(currentUserId, otherUserId, text,senderUsername);
+      await startChat(currentUserId, otherUserId, text, senderUsername);
     } else {
-      await sendMessage(chatId, currentUserId, otherUserId, text,senderUsername);
+      await sendMessage(chatId, currentUserId, otherUserId, text, senderUsername);
     }
     setNewMessage("");
   };
@@ -134,8 +113,7 @@ useEffect(() => {
   const loadOlderMessages = async () => {
     if (!chat?.hasMore || loadingOlder) return;
     setLoadingOlder(true);
-    const lastVisible = chat.lastVisible;
-    await fetchMoreMessages(chatId, lastVisible, dispatch);
+    await fetchMoreMessages(chatId, chat.lastVisible, dispatch);
     setLoadingOlder(false);
   };
 
@@ -157,7 +135,9 @@ useEffect(() => {
             },
           ]}
         >
-          <Text style={[styles.messageText, { color: isMe ? "white" : colors.text }]}>{item.text}</Text>
+          <Text style={[styles.messageText, { color: isMe ? "white" : colors.text }]}>
+            {item.text}
+          </Text>
         </View>
         {isMe && <Image source={{ uri: avatarUri }} style={styles.avatar} />}
       </View>
@@ -185,7 +165,7 @@ useEffect(() => {
     </View>
   );
 
-  // 🔹 Footer
+  // 🔹 Footer logic unchanged
   const renderFooter = () => {
     if (!chatStatus && messages.length === 0) {
       return (
@@ -226,60 +206,64 @@ useEffect(() => {
       return (
         <View style={styles.noticeCard}>
           <Icon name="lock" size={20} color={colors.textSecondary} />
-          <Text style={[styles.noticeText, { color: colors.textSecondary }]}>This chat is closed.</Text>
+          <Text style={[styles.noticeText, { color: colors.textSecondary }]}>
+            This chat is closed.
+          </Text>
         </View>
       );
     }
-
+   
     return renderInputBar();
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Header */}
-      <View style={[styles.headerBar, { borderBottomColor: colors.surface }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={{ flexDirection: "row", alignItems: "center" }}
-        >
-          <Icon name="arrow-back" size={24} color={colors.text} />
-          <Text style={[styles.headerTitle, { color: colors.text, marginLeft: 10 }]}>
-            {otherUserName || "Chat"}
-          </Text>
-        </TouchableOpacity>
-      </View>
+   
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
 
-      {/* Chat Area */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
-      >
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={renderMessage}
-          inverted
-          contentContainerStyle={{ padding: 16, paddingTop: 16 }}
-          showsVerticalScrollIndicator={false}
-          maintainVisibleContentPosition={{
-            minIndexForVisible: 0,
-            autoscrollToTopThreshold: 10,
-          }}
-          onEndReached={loadOlderMessages}
-          onEndReachedThreshold={0.1}
-          ListFooterComponent={
-            loadingOlder ? (
-              <View style={{ paddingVertical: 10 }}>
-                <ActivityIndicator size="small" color="#4B7BE5" />
-              </View>
-            ) : null
-          }
-        />
-        <View style={{ paddingBottom: keyboardHeight }}>{renderFooter()}</View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        {/* Header */}
+        <View style={[styles.headerBar, { borderBottomColor: colors.surface }]}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={{ flexDirection: "row", alignItems: "center" }}
+          >
+            <Icon name="arrow-back" size={24} color={colors.text} />
+            <Text style={[styles.headerTitle, { color: colors.text, marginLeft: 10 }]}>
+              {otherUserName || "Chat"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 20 : 0}
+        >
+<FlatList
+  ref={flatListRef} 
+  data={messages}
+  keyExtractor={(item) => item.id}
+  renderItem={renderMessage}
+  inverted
+  initialNumToRender={20}
+  contentContainerStyle={{ padding: 16, paddingTop: 16 }}
+  showsVerticalScrollIndicator={false}
+  onEndReached={loadOlderMessages}
+  onEndReachedThreshold={0.1}
+  keyboardShouldPersistTaps="handled"
+  ListFooterComponent={
+    loadingOlder && (
+      <View style={{ paddingVertical: 10 }}>
+        <ActivityIndicator size="small" color="#4B7BE5" />
+      </View>
+    )
+  }
+/>
+
+          {renderFooter()}
+
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+
   );
 };
 
