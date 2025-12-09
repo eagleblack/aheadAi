@@ -22,9 +22,12 @@ import { useTheme } from "../context/ThemeContext";
 
 import { pick, types, isCancel } from "@react-native-documents/picker";
 import RNFS from "react-native-fs";
-import firestore from "@react-native-firebase/firestore";
+import firestore, { FieldValue } from "@react-native-firebase/firestore";
 import auth from "@react-native-firebase/auth";
+import storage from "@react-native-firebase/storage";
+import * as ImagePicker from "react-native-image-picker";
 
+import {Image} from "react-native";
 // 🔹 Ask for storage permission (Android 13+ safe)
 async function requestStoragePermission() {
   if (Platform.OS !== "android") return true;
@@ -93,7 +96,50 @@ const value = route?.params?.value || null;
   const [experiences, setExperiences] = useState([]);
   const [education, setEducation] = useState([]);
   const [loading, setLoading] = useState(false);
+const [certificateImage, setCertificateImage] = useState(null);
+const [uploadingCert, setUploadingCert] = useState(false);
+const pickCertificate = async () => {
+ try {
+      const result = await ImagePicker.launchImageLibrary({
+        mediaType: "photo",
+        quality: 0.8,
+      });
+      if (result.didCancel) return;
+      if (result.assets?.length > 0) {
+     setCertificateImage({
+    uri: result.assets[0].uri,
+    name: result.assets[0].fileName || `cert_${Date.now()}.jpg`,
+    type: result.assets[0].type || "image/jpeg",
+  });
+      }
+    } catch (err) {
+      console.error("Profile pic error:", err);
+      Alert.alert("Error", "Could not pick profile picture.");
+    }
+  
+};
 
+
+const uploadCertificate = async (userId) => {
+  if (!certificateImage) return null;
+
+  setUploadingCert(true);
+
+  try {
+    const ref = storage().ref(`certificates/${userId}/mainCertificate.jpg`);
+
+    await ref.putFile(certificateImage.uri);
+
+    const url = await ref.getDownloadURL();
+    return url;
+  } catch (err) {
+    console.error("Certificate upload error:", err);
+    Alert.alert("Upload Failed", "Could not upload certificate.");
+    return null;
+  } finally {
+    setUploadingCert(false);
+  }
+};
   useEffect(() => {
   const fetchProfile = async () => {
     try {
@@ -234,7 +280,7 @@ const value = route?.params?.value || null;
       Alert.alert("Error", "No user logged in.");
       return;
     }
-
+  const certificateUrl = await uploadCertificate(user.uid);
     const userDoc = await firestore().collection("users").doc(user.uid).get();
 
     const username =
@@ -243,16 +289,19 @@ const value = route?.params?.value || null;
         : name.trim().replace(/\s+/g, "-").toLowerCase() + "-" + Math.floor(Math.random() * 10000);
 
     const userData = {
-      name,
-      dob,
-      bio,
-      education,
-      experiences,
-      username,
-      hasChecked: true,
-      verificationRequested: true,
-      verificationRequestedAt: firestore.FieldValue.serverTimestamp(),
-    };
+  name,
+  dob,
+  bio,
+  education,
+  experiences,
+  username,
+  hasChecked: true,
+  verificationRequested: true,
+  verificationRequestedAt: FieldValue.serverTimestamp(),
+};
+if (certificateUrl) {
+  userData.mainCertificate = certificateUrl;
+}
 
     // ✅ Only write label/value if provided
     if (label !== null) userData.label = label;
@@ -495,23 +544,40 @@ const value = route?.params?.value || null;
           >
             + Add Experience
           </Button>
-
+{certificateImage && (
+  <Card style={[styles.card, { backgroundColor: colors.surface }]}>
+    <Card.Content>
+      <Text style={{ color: colors.textSecondary, marginBottom: 8 }}>
+        Selected Certificate
+      </Text>
+      <Image
+        source={{ uri: certificateImage.uri }}
+        style={{ height: 180, borderRadius: 12 }}
+        resizeMode="cover"
+      />
+    </Card.Content>
+  </Card>
+)}
           {/* Upload Resume */}
-       
+       <Button
+  mode="outlined"
+  onPress={()=>{pickCertificate()}}
+  style={[styles.uploadBtn, { borderColor: colors.secondary }]}
+  labelStyle={{ color: colors.secondary, fontWeight: "600" }}
+>
+  🏆 Upload Certificate
+</Button>
 
           {/* Save Button */}
           <Button
-            mode="contained"
-            onPress={saveDetails}
-            style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            labelStyle={{
-              fontSize: 16,
-              fontWeight: "700",
-              color: colors.surface,
-            }}
-          >
-          Request Verification
-          </Button>
+  mode="contained"
+  onPress={saveDetails}
+  disabled={uploadingCert}
+  loading={uploadingCert}
+  style={[styles.saveButton, { backgroundColor: colors.primary }]}
+>
+  Request Verification
+</Button>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
