@@ -509,12 +509,18 @@ disableIntervalMomentum={true}
 
 {/* FAB */}
 {activeTab === "Post" && (
-<FAB
-icon="pencil"
-style={[styles.fab, { backgroundColor: colors.primary }]}
-onPress={() => navigation.navigate("AddPost")}
-color="#fff"
-/>
+  <FAB
+    icon="help-circle"
+    label="Ask a Question"
+    onPress={() => navigation.navigate("AddPost")}
+    style={{
+      position: "absolute",
+      right: 16,
+      bottom: 120,
+      backgroundColor: colors.primary,
+    }}
+    color="#fff"
+  />
 )}
 </SafeAreaView>
 );
