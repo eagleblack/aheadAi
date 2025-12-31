@@ -9,7 +9,9 @@ import {
   Linking,
   ActivityIndicator,
 } from "react-native";
-import Icon from "@react-native-vector-icons/material-icons";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import SIcon from "react-native-vector-icons/SimpleLineIcons";
+
 import { Avatar } from "react-native-paper";
 import { useTheme } from "../context/ThemeContext";
 import { timeAgo } from "../utils/time";
@@ -68,16 +70,16 @@ const BookmarksScreen = ({ navigation }) => {
           <Avatar.Image size={40} source={{ uri: item.user.avatar }} />
 
           <View style={styles.userInfo}>
-            <Text style={[styles.userName, { color: colors.text }]}>
+            <Text allowFontScaling={false}  style={[styles.userName, { color: colors.text }]}>
               {item.user.name}
             </Text>
 
-            <Text style={[styles.userTagline, { color: colors.textSecondary }]}>
+            <Text allowFontScaling={false}  style={[styles.userTagline, { color: colors.textSecondary }]}>
               {item.user.tagline}
             </Text>
           </View>
 
-          <Text style={[styles.timeAgo, { color: colors.textSecondary }]}>
+          <Text allowFontScaling={false}  style={[styles.timeAgo, { color: colors.textSecondary }]}>
             {timeAgo(item.createdAt)}
           </Text>
         </View>
@@ -91,7 +93,7 @@ const BookmarksScreen = ({ navigation }) => {
             }}
             onPress={(url) => Linking.openURL(url)}
           >
-            <Text
+            <Text allowFontScaling={false} 
               style={[styles.postContent, { color: colors.text }]}
             >
               {displayText}
@@ -109,7 +111,7 @@ const BookmarksScreen = ({ navigation }) => {
               }))
             }
           >
-            <Text style={[styles.readMore, { color: colors.primary }]}>
+            <Text allowFontScaling={false}  style={[styles.readMore, { color: colors.primary }]}>
               {isExpanded ? "Read less" : "Read more"}
             </Text>
           </TouchableOpacity>
@@ -128,7 +130,7 @@ const BookmarksScreen = ({ navigation }) => {
             onPress={() => handleLike(item.id)}
           >
             <Icon
-              name={item.likedByCurrentUser ? "favorite" : "favorite-border"}
+              name={item.likedByCurrentUser ? "star" : "star-outline"}
               size={22}
               color={
                 item.likedByCurrentUser
@@ -136,7 +138,7 @@ const BookmarksScreen = ({ navigation }) => {
                   : colors.textSecondary
               }
             />
-            <Text style={[styles.actionText, { color: colors.text }]}>
+            <Text allowFontScaling={false}  style={[styles.actionText, { color: colors.text }]}>
               {item.totalLikes}
             </Text>
           </TouchableOpacity>
@@ -151,31 +153,26 @@ const BookmarksScreen = ({ navigation }) => {
               })
             }
           >
-            <Icon
-              name="chat-bubble-outline"
-              size={22}
-              color={colors.textSecondary}
-            />
-            <Text style={[styles.actionText, { color: colors.text }]}>
-              {item.totalComments}
+           
+            <Text allowFontScaling={false}  style={[styles.actionText, { color: colors.text,fontSize:16}]}>
+              Reply
             </Text>
           </TouchableOpacity>
 
           {/* SHARE */}
-          <TouchableOpacity style={styles.actionItem}>
-            <Icon name="share" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
+
 
           {/* BOOKMARK */}
           <TouchableOpacity
-            style={styles.actionItem}
+            style={[styles.actionItem,{marginLeft:'auto'}]}
             onPress={() => handleBookmark(item.id)}
+
           >
-            <Icon
+            <SIcon
               name={
                 item.bookmarkedByCurrentUser
-                  ? "bookmark"
-                  : "bookmark-border"
+                  ? "pin"
+                  : "pin"
               }
               size={22}
               color={colors.primary}
@@ -216,7 +213,7 @@ const BookmarksScreen = ({ navigation }) => {
           style={{ flexDirection: "row", alignItems: "center" }}
         >
           <Icon name="arrow-back" size={24} color={colors.text} />
-          <Text
+          <Text allowFontScaling={false} 
             style={[
               styles.headerTitle,
               { color: colors.text, marginLeft: 12 },
