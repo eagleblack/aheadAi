@@ -20,76 +20,60 @@ const NewsCard = ({ item, colors }) => {
   const [hasImageError, setHasImageError] = useState(false);
 
   const imageSource =
-    !hasImageError && item?.image_urls.length
-      ? { uri: item?.image_urls[0] }
+    !hasImageError && item?.image_urls?.length
+      ? { uri: item.image_urls[0] }
       : fallbackImage;
-
-  const handleOpenLink = async (url) => {
-    try {
-      Linking.openURL(url);
-    } catch (e) {
-      console.error("Error opening link:", e);
-    }
-  };
 
   const addedDate =
     typeof item?.addedOn?.toDate === "function"
       ? item.addedOn.toDate()
       : item?.addedOn;
 
+  const openSource = () => {
+    if (item?.url) {
+      Linking.openURL(item.url);
+    }
+  };
+
   return (
     <View style={[styles.newsPage, { backgroundColor: colors.background }]}>
+      {/* IMAGE */}
+      <View style={styles.imageWrapper}>
+        <Image
+          source={imageSource}
+          style={styles.newsFullImage}
+          resizeMode="cover"
+          onError={() => setHasImageError(true)}
+        />
 
-      <Image
-        source={imageSource}
-        style={styles.newsFullImage}
-        resizeMode="cover"
-        onError={() => {
-          console.log("❌ Image failed to load, showing fallback");
-          setHasImageError(true);
-        }}
-      />
-
-      {/* Overlay footer on image */}
-      <View style={styles.newsHeaderOverlay}>
-        <Text style={styles.timeAgoOverlay}>{timeAgo(addedDate)}</Text>
-
-        <Text style={styles.newsTitleOverlay}>
-          {item?.title || "Untitled"}
-        </Text>
-
-        {/* ✅ SOURCE */}
-        <View style={styles.sourceRow}>
-          <Text style={styles.sourceLabel}>Source:</Text>
-          <Text style={styles.sourceText}>
-            {item?.source || "Not found"}
-          </Text>
-        </View>
-      </View>
-
-      {/* Summary below image */}
-      <View
-        style={[
-          styles.newsSummaryContainer,
-          { backgroundColor: colors.surface },
-        ]}
-      >
-        <Text style={[styles.newsSummary, { color: colors.text }]}>
-          {item?.summary || "No summary available."}
-        </Text>
-
-        {item?.url ? (
-          <TouchableOpacity
-            style={styles.readMoreButton}
-            onPress={() => handleOpenLink(item.url)}
-          >
-            <Text style={[styles.readMoreLink, { color: colors.primary }]}>
-              Read more →
-            </Text>
+        {/* SOURCE – bottom right */}
+        {item?.source ? (
+          <TouchableOpacity style={styles.sourceBadge} onPress={openSource}>
+            <Text allowFontScaling={false}  style={styles.sourceText}>{item.source}</Text>
           </TouchableOpacity>
         ) : null}
       </View>
 
+      {/* CONTENT BELOW IMAGE */}
+      <View
+        style={[
+          styles.contentContainer,
+          { backgroundColor: colors.surface },
+        ]}
+      >
+        {/* TIME */}
+        <Text allowFontScaling={false}  style={styles.timeAgo}>{timeAgo(addedDate)}</Text>
+
+        {/* TITLE */}
+        <Text allowFontScaling={false}  style={[styles.newsTitle, { color: colors.text }]}>
+          {item?.title || "Untitled"}
+        </Text>
+
+        {/* SUMMARY */}
+        <Text allowFontScaling={false}  style={[styles.newsSummary, { color: colors.text }]}>
+          {item?.summary || "No summary available."}
+        </Text>
+      </View>
     </View>
   );
 };
@@ -98,7 +82,10 @@ const styles = StyleSheet.create({
   newsPage: {
     minHeight: PAGE_HEIGHT,
     width: "100%",
-    flexDirection: "column",
+  },
+
+  imageWrapper: {
+    position: "relative",
   },
 
   newsFullImage: {
@@ -107,69 +94,46 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
   },
 
-  newsHeaderOverlay: {
+  /* SOURCE BADGE */
+  sourceBadge: {
     position: "absolute",
-    top: 140,
-    width: "100%",
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
-  },
-
-  timeAgoOverlay: {
-    fontSize: 12,
-    color: "#fff",
-    marginBottom: 4,
-    opacity: 0.85,
-  },
-
-  newsTitleOverlay: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#fff",
-    lineHeight: 24,
-    marginBottom: 6,
-  },
-
-  /* ✅ SOURCE STYLES */
-  sourceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 2,
-  },
-
-  sourceLabel: {
-    fontSize: 11,
-    color: "#ddd",
-    marginRight: 5,
-    opacity: 0.8,
+    bottom: 10,
+    right: 10,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
   },
 
   sourceText: {
-    fontSize: 12,
     color: "#fff",
+    fontSize: 12,
     fontWeight: "600",
-    opacity: 0.9,
   },
 
-  newsSummaryContainer: {
+  contentContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingVertical: 18,
+  },
+
+  timeAgo: {
+    fontSize: 12,
+    color: "#888",
+    marginBottom: 6,
+  },
+
+  newsTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    lineHeight: 24,
+    marginBottom: 10,
+    marginTop:-10
   },
 
   newsSummary: {
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: "Inter",
-  },
-
-  readMoreButton: {
-    marginTop: 12,
-  },
-
-  readMoreLink: {
-    fontWeight: "600",
-    fontSize: 16,
+    opacity: 0.9,
   },
 });
 
