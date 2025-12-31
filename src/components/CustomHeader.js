@@ -5,35 +5,44 @@ import Feather from "react-native-vector-icons/Feather";
 import { useTheme } from "../context/ThemeContext";
 import { useNavigation } from "@react-navigation/native";
 import { useSelector } from "react-redux";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const CustomHeader = ({ activeTab, setActiveTab }) => {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const { user: userData } = useSelector((state) => state.user);
-   const unreadCount = useSelector((state) => state.chat.unreadCount);
+    const unreadCount = useSelector((state) => state.notifications.unreadCount || 0);
+  
 const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
  const dummyUnreadCount = 4; // 🔴 Replace with Redux later
+   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.header]}>
+    <View style={[styles.header,{ borderBottomColor: colors.text,height:50+insets.top,paddingTop:insets.top}]}>
       {/* Left: Avatar -> open drawer */}
-      <TouchableOpacity onPress={() => navigation.openDrawer()}>
       
-              <View style={[styles.avatar,{borderColor:colors.primary}]}>
-  <Image 
-    source={require("../assets/logomain.jpg")} 
-    style={{ width: 34, height: 34, borderRadius: 18}} 
-    resizeMode="contain"
-  />    
-</View>
-      </TouchableOpacity>
 
       {/* Center */}
       <View style={styles.headerCenter}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Ahead AI</Text>
+        <Text allowFontScaling={false}  style={[styles.headerTitle, { color: colors.text,
+          
+         }]}  >Ahead AI</Text>
     
 
       </View>
-
+<TouchableOpacity onPress={() => navigation.navigate("Profile")}>
+       
+              <View style={[styles.avatar,{borderColor:colors.primary}]}>
+  {userData?.profilePic?
+                     <Image source={{ uri: userData?.profilePic }}  
+                     style={{ width: 34, height: 34, borderRadius: 18}} 
+    resizeMode="contain" />:
+                     <Image 
+                         source={require("../assets/logomain.jpg")} 
+                         style={{ width: 34, height: 34, borderRadius: 18}} 
+    resizeMode="contain"
+                       />  }
+</View>
+      </TouchableOpacity>
       {/* Right */}
        <TouchableOpacity
         style={styles.messageWrapper}
@@ -42,12 +51,12 @@ const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
       >
         <Feather
           name="bell"
-          size={26}
+          size={30}
           color={colors.text}
         />
         {unreadCount > 0 && (
           <View style={styles.unreadBadge}>
-            <Text style={styles.unreadText}>
+            <Text allowFontScaling={false}  style={styles.unreadText}>
               {unreadCount > 9 ? "9+" : unreadCount}
             </Text>
           </View>
@@ -63,8 +72,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    height: 55,
+borderBottomWidth: 0.1,
+    
+
   },
   avatar: {
     width: 40,
@@ -73,15 +83,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
+    marginRight:10
   },
   headerCenter: {
     flex: 1,
-    alignItems: "center",
+    
+    
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: "bold",
-   
+     marginRight:10
 
   },
   headerRight: {
