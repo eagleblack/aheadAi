@@ -16,10 +16,12 @@ import { ActivityIndicator, Button } from "react-native-paper";
 import Icon from "react-native-vector-icons/Ionicons";
 import UserPosts from "../components/UserPosts";
 import YourPosting from "../components/YourPosting";
+import { useNavigation } from "@react-navigation/native";
 
 const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
 
-const ProfilePage = ({ navigation }) => {
+const ProfilePage = ({  }) => {
+  const navigation=useNavigation()
   const { colors } = useTheme();
   const dispatch = useDispatch();
   const { user: userData, loading } = useSelector((state) => state.user);
@@ -85,10 +87,16 @@ const ProfilePage = ({ navigation }) => {
           <Icon name="arrow-back" size={26} color={colors.text} />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Profile
-        </Text>
-
+       <View style={{flexDirection:'row'}}>
+        <TouchableOpacity onPress={()=>{navigation.openDrawer()}}>
+  <Image 
+            source={require("../assets/logomain.jpg")} 
+            style={{ width: 34, height: 34, borderRadius: 18}} 
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+         
+          
         <TouchableOpacity
           onPress={() => {
             userData?.userType === "company"
@@ -97,7 +105,9 @@ const ProfilePage = ({ navigation }) => {
           }}
         >
           <Icon name="create-outline" size={26} color={colors.primary} />
-        </TouchableOpacity>
+        </TouchableOpacity> 
+       </View>
+
       </View>
 
       <ScrollView
@@ -111,20 +121,20 @@ const ProfilePage = ({ navigation }) => {
             style={styles.profilePic}
           />
 
-          <Text style={[styles.name, { color: colors.text }]}>
+          <Text allowFontScaling={false}  style={[styles.name, { color: colors.text }]}>
             {userData.name}
           </Text>
-          <Text style={[styles.username, { color: colors.textSecondary }]}>
+          <Text allowFontScaling={false}  style={[styles.username, { color: colors.textSecondary }]}>
             @{userData.username}
           </Text>
 
           {userData.bio ? (
-            <Text style={[styles.bio, { color: colors.text }]}>{userData.bio}</Text>
+            <Text allowFontScaling={false}  style={[styles.bio, { color: colors.text }]}>{userData.bio}</Text>
           ) : null}
 
-          {userData.dob && (
-            <Text style={[styles.dob, { color: colors.textSecondary }]}>
-              🎂 DOB: {userData.dob}
+          {userData.value && (
+            <Text allowFontScaling={false}  style={[styles.dob, { color: colors.textSecondary }]}>
+             {userData.value}
             </Text>
           )}
 
@@ -159,7 +169,7 @@ const ProfilePage = ({ navigation }) => {
               ]}
               onPress={() => setActiveTab(tab)}
             >
-              <Text
+              <Text allowFontScaling={false} 
                 style={[
                   styles.tabText,
                   { color: activeTab === tab ? colors.primary : colors.text },
@@ -188,20 +198,20 @@ const ProfilePage = ({ navigation }) => {
                     { backgroundColor: colors.surface },
                   ]}
                 >
-                  <Text style={[styles.cardTitle, { color: colors.text }]}>
+                  <Text allowFontScaling={false}  style={[styles.cardTitle, { color: colors.text }]}>
                     {exp.title}
                   </Text>
-                  <Text
+                  <Text allowFontScaling={false} 
                     style={[styles.cardOrg, { color: colors.textSecondary }]}
                   >
                     {exp.org}
                   </Text>
-                  <Text
+                  <Text allowFontScaling={false} 
                     style={[styles.cardDate, { color: colors.textSecondary }]}
                   >
                     {exp.from} – {exp.to}
                   </Text>
-                  <Text style={[styles.cardDesc, { color: colors.text }]}>
+                  <Text allowFontScaling={false}  style={[styles.cardDesc, { color: colors.text }]}>
                     {exp.desc}
                   </Text>
                 </View>
@@ -218,15 +228,15 @@ const ProfilePage = ({ navigation }) => {
                     { backgroundColor: colors.surface },
                   ]}
                 >
-                  <Text style={[styles.cardTitle, { color: colors.text }]}>
+                  <Text allowFontScaling={false}  style={[styles.cardTitle, { color: colors.text }]}>
                     {edu.degree}
                   </Text>
-                  <Text
+                  <Text allowFontScaling={false} 
                     style={[styles.cardOrg, { color: colors.textSecondary }]}
                   >
                     {edu.institution}
                   </Text>
-                  <Text
+                  <Text allowFontScaling={false} 
                     style={[styles.cardDate, { color: colors.textSecondary }]}
                   >
                     {edu.from} – {edu.to}
