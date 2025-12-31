@@ -3,7 +3,7 @@ export const timeAgo = (timestamp) => {
 
   let date;
 
-  // Handle Firestore Timestamp object
+  // Handle Firestore Timestamp
   if (timestamp.seconds) {
     date = new Date(timestamp.seconds * 1000);
   } 
@@ -12,16 +12,21 @@ export const timeAgo = (timestamp) => {
     date = new Date(timestamp);
   }
 
-  if (isNaN(date.getTime())) return ""; // prevent "Invalid Date"
+  if (isNaN(date.getTime())) return "";
 
   const now = new Date();
-  const diff = Math.floor((now - date) / 1000); // difference in seconds
+  const diffSeconds = Math.floor((now - date) / 1000);
 
-  if (diff < 60) return "Just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+  const minute = 60;
+  const hour = 3600;
+  const day = 86400;
+  const year = 365 * day;
 
-  // fallback
+  if (diffSeconds < minute) return "Just now";
+  if (diffSeconds < hour) return `${Math.floor(diffSeconds / minute)}m ago`;
+  if (diffSeconds < day) return `${Math.floor(diffSeconds / hour)}h ago`;
+  if (diffSeconds < year) return `${Math.floor(diffSeconds / day)}d ago`;
+
+  // ✅ fallback after 365 days
   return date.toLocaleDateString();
 };
