@@ -13,9 +13,14 @@ ActivityIndicator,
 Linking,
 } from "react-native";
 import { FAB } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import Icon from "@react-native-vector-icons/material-icons";
+import SIcon from "react-native-vector-icons/SimpleLineIcons";
+
+
+
+
 import Hyperlink from "react-native-hyperlink";
 import { useTheme } from "../context/ThemeContext";
 import CustomHeader from "../components/CustomHeader";
@@ -55,6 +60,7 @@ const HomeScreenUser = () => {
 const navigation = useNavigation();
 const { colors } = useTheme();
 const dispatch = useDispatch();
+   const insets = useSafeAreaInsets();
 
 const scrollY = useRef(new Animated.Value(0)).current;
 const lastScrollY = useRef(0);
@@ -194,16 +200,14 @@ item?.user.uid === userData.uid
           <Avatar.Image size={40} source={{ uri: item.user.avatar }} />
 
           <View style={styles.userInfo}>
-            <Text style={[styles.userName, { color: colors.text }]}>
+            <Text allowFontScaling={false}  style={[styles.userName, { color: colors.text }]}>
               {item.user.name}
             </Text>
 
-            <Text style={[styles.userTagline, { color: colors.textSecondary }]}>
-              {item.user.tagline}
-            </Text>
+            
           </View>
 
-          <Text style={[styles.timeAgo, { color: colors.textSecondary }]}>
+          <Text allowFontScaling={false}  style={[styles.timeAgo, { color: colors.textSecondary }]}>
             {timeAgo(item.createdAt)}
           </Text>
         </TouchableOpacity>
@@ -217,7 +221,7 @@ item?.user.uid === userData.uid
             }}
             onPress={(url) => Linking.openURL(url)}
           >
-            <Text
+            <Text allowFontScaling={false} 
               style={[styles.postContent, { color: colors.text }]}
             >
               {displayText}
@@ -235,7 +239,7 @@ item?.user.uid === userData.uid
               }))
             }
           >
-            <Text style={[styles.readMore, { color: colors.primary }]}>
+            <Text allowFontScaling={false}  style={[styles.readMore, { color: colors.primary }]}>
               {isExpanded ? "Read less" : "Read more"}
             </Text>
           </TouchableOpacity>
@@ -254,15 +258,15 @@ item?.user.uid === userData.uid
             onPress={() => handleLike(item)}
           >
             <Icon
-              name={item.likedByCurrentUser ? "favorite" : "favorite-border"}
-              size={24}
+              name={item.likedByCurrentUser ? "star" : "star-outline"}
+              size={26}
               color={
                 item.likedByCurrentUser
                   ? colors.primary
                   : colors.textSecondary
               }
             />
-            <Text style={[styles.actionText, { color: colors.text }]}>
+            <Text allowFontScaling={false}  style={[styles.actionText, { color: colors.text }]}>
               {item.totalLikes}
             </Text>
           </TouchableOpacity>
@@ -277,29 +281,23 @@ item?.user.uid === userData.uid
               })
             }
           >
-            <Icon
-              name="chat-bubble-outline"
-              size={24}
-              color={colors.textSecondary}
-            />
-            <Text style={[styles.actionText, { color: colors.text }]}>
-              {item.totalComments}
+            
+            <Text allowFontScaling={false}  style={[styles.actionText, { color: colors.text,fontSize:16 }]}>
+             Reply
             </Text>
           </TouchableOpacity>
 
           {/* SHARE */}
-          <TouchableOpacity style={styles.actionItem}>
-            <Icon name="share" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
+          
 
           {/* BOOKMARK */}
           <TouchableOpacity
-            style={styles.actionItem}
+            style={[{alignSelf:'flex-end',marginLeft:'auto'}]}
             onPress={() => handleBookmark(item)}
           >
-          <Icon
+          <SIcon
 name={
-item.bookmarkedByCurrentUser ? "bookmark" : "bookmark-border"
+item.bookmarkedByCurrentUser ? "pin" : "pin"
 }
 size={24}
 color={
@@ -317,7 +315,7 @@ item.bookmarkedByCurrentUser
 );
 
 return (
-<SafeAreaView style={{ flex: 1, backgroundColor: colors.background,paddingHorizontal:6 }}>
+<SafeAreaView style={{ flex: 1, backgroundColor: colors.background,paddingHorizontal:6 }} edges={['top']}>
 {/* COLLAPSIBLE HEADER CONTAINER */}
 <Animated.View
 style={[
@@ -327,7 +325,7 @@ styles.headerContainer,
 ]}
 >
 {/* HEADER */}
-<Animated.View style={{ opacity: headerOpacity, height: HEADER_MAX }}>
+<Animated.View style={{ opacity: headerOpacity, height: HEADER_MAX+insets.top}}>
 <CustomHeader activeTab={activeTab} setActiveTab={setActiveTab} />
 </Animated.View>
 
