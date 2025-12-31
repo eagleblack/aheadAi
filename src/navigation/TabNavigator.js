@@ -2,10 +2,7 @@
 import React from "react";
 import { View, Text, Platform } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-
-import Feather from "react-native-vector-icons/Feather";
-import MaterialIcon from "react-native-vector-icons/MaterialIcons";
-import Ionicons from "react-native-vector-icons/Ionicons"; // 👈 NEW for Chat
+import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 
 import { useTheme } from "../context/ThemeContext";
 import { useSelector } from "react-redux";
@@ -15,92 +12,62 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import HomeScreen from "../screens/HomeScreen";
 import ExpertScreen from "../screens/ExpertScreen";
 import JobScreen from "../screens/JobScreen";
-import NotificationScreen from "../screens/NotificationScreen";
-import GroupScreen from "../screens/GroupScreen";
 import HireScreen from "../screens/HireScreen";
-import ProfileScreen from "../screens/Profile";
-import PostJobScreen from "../screens/PostJobScreen";
 import ChatScreen from "../screens/ChatScreen";
+import GroupScreen from "../screens/GroupScreen";
+import PostJobScreen from "../screens/PostJobScreen";
 
 const Tab = createBottomTabNavigator();
 
 const TabNavigator = () => {
   const { colors } = useTheme();
   const { user: userData } = useSelector((state) => state.user);
-  const unreadCount = useSelector((state) => state.notifications.unreadCount || 0);
+  const unreadCount = useSelector((state) => state.chat.unreadCount || 0);
   const insets = useSafeAreaInsets();
 
-  // ----------------------------
-  // 🔵 ICON MAPPING (Clean & Extendable)
-  // ----------------------------
+  // 🔵 ICON MAP
   const icons = {
-    Home: { type: "Feather", name: "home" },
-    Expert: { type: "Material", name: "explicit" },
-    Job: { type: "Feather", name: "briefcase" },
-    Hire: { type: "Feather", name: "briefcase" },
-    "Post Job": { type: "Feather", name: "briefcase" },
-
-    // 👇 Chat uses Ionicons now
-    Chat: { type: "Ionicons", name: "chatbox" },
-
-    Group: { type: "Feather", name: "users" },
-    Profile: { type: "Feather", name: "user" },
-    Notification: { type: "Feather", name: "bell" },
+    Dashboard: "th-list",
+    Mentor: "user-tie",
+    Career: "anchor",
+    Message: "envelope",
+    Circle: "users",
   };
 
-  // ----------------------------
-  // 🔵 TAB OPTIONS
-  // ----------------------------
   const screenOptions = ({ route }) => ({
     headerShown: false,
-    tabBarShowLabel: true,
-    tabBarLabelPosition: "below-icon",
 
     tabBarIcon: ({ focused }) => {
-      const iconData = icons[route.name] || icons["Home"];
-
       const color = focused ? colors.primary : colors.textSecondary;
 
       return (
-        <View
-          style={{
-            alignItems: "center",
-            justifyContent: "center",
-            marginTop: Platform.OS === "ios" ? 6 : 2,
-          }}
-        >
-          {/* Render icon based on type */}
-          {iconData.type === "Feather" && (
-            <Feather name={iconData.name} size={24} color={color} />
-          )}
+        <View style={{ alignItems: "center", justifyContent: "center" }}>
+          <FontAwesome5
+            name={icons[route.name]}
+            size={22}
+            color={color}
+            solid
+          />
 
-          {iconData.type === "Material" && (
-            <MaterialIcon name={iconData.name} size={24} color={color} />
-          )}
-
-          {iconData.type === "Ionicons" && (
-            <Ionicons name={iconData.name} size={24} color={color} />
-          )}
-
-          {/* 🔴 Notification badge */}
-          {route.name === "Notification" && unreadCount > 0 && (
+          {/* 🔴 Message badge */}
+          {route.name === "Message" && unreadCount > 0 && (
             <View
               style={{
                 position: "absolute",
-                top: 0,
-                right: -6,
+                top: -4,
+                right: -10,
                 backgroundColor: "red",
                 borderRadius: 10,
                 minWidth: 18,
                 height: 18,
-                justifyContent: "center",
                 alignItems: "center",
+                justifyContent: "center",
                 paddingHorizontal: 3,
               }}
             >
-              <Text
+              <Text allowFontScaling={false} 
                 style={{
-                  color: "white",
+                  color: "#fff",
                   fontSize: 10,
                   fontWeight: "700",
                 }}
@@ -114,7 +81,7 @@ const TabNavigator = () => {
     },
 
     tabBarLabel: ({ focused }) => (
-      <Text
+      <Text allowFontScaling={false} 
         style={{
           fontSize: 11,
           marginTop: 2,
@@ -128,15 +95,15 @@ const TabNavigator = () => {
 
     tabBarStyle: {
       position: "absolute",
-      bottom: 0,
       left: 16,
       right: 16,
-      elevation: 6,
-      backgroundColor: colors.surface,
-      borderRadius: 18,
+      bottom: 0,
       height: 65 + insets.bottom,
       paddingBottom: Platform.OS === "ios" ? insets.bottom : 0,
+      backgroundColor: colors.surface,
+      borderRadius: 18,
       borderTopWidth: 0,
+      elevation: 6,
       shadowColor: "#000",
       shadowOpacity: 0.1,
       shadowRadius: 8,
@@ -144,35 +111,30 @@ const TabNavigator = () => {
     },
   });
 
-  // ----------------------------
-  // 🔵 COMPANY USER LAYOUT
-  // ----------------------------
+  // 🔵 COMPANY USER
   if (userData?.userType === "company") {
     return (
       <Tab.Navigator screenOptions={screenOptions}>
-        <Tab.Screen name="Home" component={HomeScreen} />
-        <Tab.Screen name="Post Job" component={PostJobScreen} />
-        <Tab.Screen name="Profile" component={ProfileScreen} />
+        <Tab.Screen name="Dashboard" component={HomeScreen} />
+        <Tab.Screen name="Career" component={PostJobScreen} />
+        <Tab.Screen name="Message" component={ChatScreen} />
       </Tab.Navigator>
     );
   }
 
-  // ----------------------------
-  // 🔵 NORMAL USER LAYOUT
-  // ----------------------------
+  // 🔵 NORMAL USER
   return (
     <Tab.Navigator screenOptions={screenOptions}>
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Expert" component={ExpertScreen} />
+      <Tab.Screen name="Dashboard" component={HomeScreen} />
+      <Tab.Screen name="Mentor" component={ExpertScreen} />
 
-      {userData?.userType === "company" ? (
-        <Tab.Screen name="Hire" component={HireScreen} />
-      ) : (
-        <Tab.Screen name="Job" component={JobScreen} />
-      )}
+      <Tab.Screen
+        name="Career"
+        component={userData?.userType === "company" ? HireScreen : JobScreen}
+      />
 
-      <Tab.Screen name="Chat" component={ChatScreen} />
-      <Tab.Screen name="Group" component={GroupScreen} />
+      <Tab.Screen name="Message" component={ChatScreen} />
+      <Tab.Screen name="Circle" component={GroupScreen} />
     </Tab.Navigator>
   );
 };
