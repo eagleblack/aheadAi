@@ -11,7 +11,7 @@ import {
   Linking,
   Alert,
 } from "react-native";
-import Icon from "@react-native-vector-icons/material-icons";
+import Icon from "react-native-vector-icons/MaterialIcons";
 import Hyperlink from "react-native-hyperlink";
 import { useTheme } from "../context/ThemeContext";
 import { useDispatch, useSelector } from "react-redux";
@@ -67,7 +67,7 @@ export default function UserPosts({ navigation }) {
   if (posts.length === 0) {
     return (
       <View style={styles.loader}>
-        <Text style={{ color: colors.text, fontSize: 16 }}>No posts yet</Text>
+        <Text allowFontScaling={false}  style={{ color: colors.text, fontSize: 16 }}>No posts yet</Text>
       </View>
     );
   }
@@ -80,34 +80,35 @@ export default function UserPosts({ navigation }) {
         (item.content?.length > 120 ? "..." : "");
 
     return (
-      <View style={[styles.tweetContainer, { borderColor: colors.border }]}>
+      <View style={[styles.postContainer, { borderColor: colors.border }]}>
         {/* Left column: avatar + thread line */}
-        <View style={styles.threadColumn}>
-          <Image
+        <View style={styles.headerRow}>
+        <Image
             source={{
               uri: userData.profilePic || "https://i.pravatar.cc/150",
             }}
             style={styles.avatar}
           />
-          <View style={[styles.threadLine, { backgroundColor: colors.border }]} />
+         
+                   <View style={styles.userInfo}>
+                     <Text allowFontScaling={false}  style={[styles.userName, { color: colors.text }]}>
+                       {userData?.name}
+                     </Text>
+         
+                     
+                   </View>
+         
+                   <Text allowFontScaling={false}  style={[styles.timeAgo, { color: colors.textSecondary }]}>
+                     {timeAgo(item.createdAt)}
+                   </Text>
         </View>
 
         {/* Right content section */}
         <View style={styles.tweetContent}>
 
-          {/* Header */}
-          <View style={styles.tweetHeader}>
-            <Text style={[styles.userName, { color: colors.text }]}>
-              {userData.name || "Anonymous"}
-            </Text>
-            <Text style={[styles.timeAgo, { color: colors.textSecondary }]}>
-              · {timeAgo(item.createdAt)}
-            </Text>
-          </View>
+        
 
-          <Text style={[styles.userTagline, { color: colors.textSecondary }]}>
-            {userData?.profileTitle || "New on Ahead"}
-          </Text>
+        
 
           {/* Content */}
           {item.content && (
@@ -118,7 +119,7 @@ export default function UserPosts({ navigation }) {
               }}
               onPress={(url) => Linking.openURL(url)}
             >
-              <Text style={[styles.postContent, { color: colors.text }]}>
+              <Text allowFontScaling={false}  style={[styles.postContent, { color: colors.text }]}>
                 {displayText}
               </Text>
             </Hyperlink>
@@ -131,7 +132,7 @@ export default function UserPosts({ navigation }) {
                 setExpanded((prev) => ({ ...prev, [item.id]: !isExpanded }))
               }
             >
-              <Text style={[styles.readMore, { color: colors.primary }]}>
+              <Text allowFontScaling={false}  style={[styles.readMore, { color: colors.primary }]}>
                 {isExpanded ? "Read less" : "Read more"}
               </Text>
             </TouchableOpacity>
@@ -163,16 +164,16 @@ export default function UserPosts({ navigation }) {
             >
               <Icon
                 name={
-                  item.likedByCurrentUser ? "favorite" : "favorite-border"
+                  item.likedByCurrentUser ? "star" : "star-outline"
                 }
-                size={20}
+                size={26}
                 color={
                   item.likedByCurrentUser
                     ? colors.primary
                     : colors.textSecondary
                 }
               />
-              <Text
+              <Text allowFontScaling={false} 
                 style={[styles.statsCount, { color: colors.text }]}
               >
                 {item.totalLikes || 0}
@@ -189,31 +190,24 @@ export default function UserPosts({ navigation }) {
                 })
               }
             >
-              <Icon
-                name="chat-bubble-outline"
-                size={20}
-                color={colors.textSecondary}
-              />
-              <Text
-                style={[styles.statsCount, { color: colors.text }]}
+             
+              <Text allowFontScaling={false} 
+                style={[styles.statsCount, { color: colors.text ,fontSize:16}]}
               >
-                {item.totalComments || 0}
+                Reply
               </Text>
             </TouchableOpacity>
 
-            {/* Share */}
-            <TouchableOpacity style={styles.actionButton}>
-              <Icon name="share" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
+        
 
             {/* Delete */}
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionButton,{marginLeft:'auto'}]}
               onPress={() => handleDeletePost(item.id)}
             >
               <Icon
                 name="delete-outline"
-                size={20}
+                size={26}
                 color={colors.textSecondary}
               />
             </TouchableOpacity>
@@ -327,5 +321,55 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     fontFamily: "Inter-Variable",
+  },
+
+  /* POST STYLE */
+  postContainer: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  userInfo: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  userName: { fontSize: 15, fontWeight: "600" },
+  userTagline: { fontSize: 12, marginTop: 1 },
+  timeAgo: { fontSize: 12 },
+
+  postContent: {
+    marginTop: 6,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: 600,
+    fontFamily: "Inter",
+  },
+
+  readMore: {
+    fontSize: 14,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+
+  /* ACTION BAR */
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+  },
+  actionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 20,
+  },
+  actionText: {
+    fontSize: 13,
+    marginLeft: 6,
   },
 });
