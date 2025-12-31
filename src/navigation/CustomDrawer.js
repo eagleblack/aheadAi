@@ -9,8 +9,11 @@ import {
   Switch,
 } from "react-native";
 import { DrawerContentScrollView } from "@react-navigation/drawer";
-import Icon from "@react-native-vector-icons/material-icons";
+import Icon from "react-native-vector-icons/MaterialIcons";
 import IconF from "react-native-vector-icons/Feather";
+import IconFA5 from "react-native-vector-icons/FontAwesome5";
+
+import SIcon from "react-native-vector-icons/SimpleLineIcons";
 
 import { useTheme } from "../context/ThemeContext";
 import { useNavigation } from "@react-navigation/native";
@@ -40,10 +43,8 @@ const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
                        resizeMode="contain"
                      />  }
      
-        <Text style={[styles.name, { color: colors.text }]}>{userData?.name || "Ahead User"}</Text>
-        <Text style={[styles.bio, { color: colors.textSecondary }]}>
-        {userData?.profileTitle}
-        </Text>
+        <Text allowFontScaling={false}  style={[styles.name, { color: colors.text }]}>{userData?.name || "Ahead User"}</Text>
+      
        
       </TouchableOpacity>
 
@@ -57,7 +58,7 @@ const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
         userData.userType === "company"?"":
           <TouchableOpacity style={styles.menuItem} onPress={()=>{navigation.navigate("Following")}}>
           <Icon name="add" size={20} color={colors.text} />
-          <Text style={[styles.menuText, { color: colors.text }]}>
+          <Text allowFontScaling={false}  style={[styles.menuText, { color: colors.text }]}>
             My Connections
           </Text>
         </TouchableOpacity>
@@ -66,8 +67,8 @@ const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
             {
         userData.userType === "company"?"":
         <TouchableOpacity style={styles.menuItem} onPress={()=>{navigation.navigate("Bookmark")}}>
-          <Icon name="bookmark" size={20} color={colors.text} />
-          <Text style={[styles.menuText, { color: colors.text }]}>
+          <SIcon name="pin" size={20} color={colors.text} />
+          <Text allowFontScaling={false}  style={[styles.menuText, { color: colors.text }]}>
             Bookmarks
           </Text>
         </TouchableOpacity>
@@ -75,7 +76,7 @@ const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
            {
         userData.userType === "company"?"": <TouchableOpacity style={styles.menuItem} onPress={()=>{navigation.navigate("Applied")}}>
             <IconF name="briefcase" size={20} color={colors.text} />
-          <Text style={[styles.menuText, { color: colors.text }]}>
+          <Text allowFontScaling={false}  style={[styles.menuText, { color: colors.text }]}>
             Applied Jobs
           </Text>
          
@@ -86,7 +87,7 @@ const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
         <TouchableOpacity style={styles.menuItem}
          onPress={()=>{navigation.navigate("Bookings")}}>
             <Icon name="star-border-purple500" size={20} color={colors.text} />
-          <Text style={[styles.menuText, { color: colors.text }]}>
+          <Text allowFontScaling={false}  style={[styles.menuText, { color: colors.text }]}>
            Expert Booking
           </Text>
          
@@ -97,7 +98,7 @@ const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
         userData.userType === "company"?
         <TouchableOpacity style={styles.menuItem} onPress={()=>{navigation.navigate("JobPost")}}>
           <IconF name="briefcase" size={20} color={colors.text} />
-          <Text style={[styles.menuText, { color: colors.text }]}>
+          <Text allowFontScaling={false}  style={[styles.menuText, { color: colors.text }]}>
             Post Job
           </Text>
          
@@ -107,7 +108,7 @@ const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
         userData.userType === "company"?"":
           <TouchableOpacity style={styles.menuItem} onPress={()=>{navigation.navigate('MindGrow')}}>
          <Icon name="lightbulb" size={20} color={colors.text} />
-          <Text style={[styles.menuText, { color: colors.text }]}>
+          <Text allowFontScaling={false}  style={[styles.menuText, { color: colors.text }]}>
             Mind Developing Games
           </Text>
          
@@ -117,7 +118,7 @@ const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
         userData.userType === "company"?"":
           <TouchableOpacity style={styles.menuItem} onPress={()=>{navigation.navigate('StudyScreen')}}>
           <Icon name="book" size={20} color={colors.text} />
-          <Text style={[styles.menuText, { color: colors.text }]}>
+          <Text allowFontScaling={false}  style={[styles.menuText, { color: colors.text }]}>
            Learn
           </Text>
          
@@ -130,23 +131,23 @@ const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
       <View style={styles.bottomSection}>
            {
         userData.userType === "company"?"":<TouchableOpacity style={styles.menuItem} onPress={()=>{navigation.navigate("ExpertonScreen")}}>
-            <Icon name="explicit" size={20} color={colors.text} />
-          <Text style={[styles.menuText, { color: colors.text }]}>
-           Become an Expert
+            <IconFA5 name="user" size={20} color={colors.text} />
+          <Text allowFontScaling={false}  style={[styles.menuText, { color: colors.text }]}>
+           Become a Mentor
           </Text>
          
         </TouchableOpacity>
       }
         <TouchableOpacity style={styles.menuItem} onPress={()=>{navigation.navigate("Settings")}}>
           <Icon name="settings" size={20} color={colors.text} />
-          <Text style={[styles.menuText, { color: colors.text }]}>
+          <Text allowFontScaling={false}  style={[styles.menuText, { color: colors.text }]}>
             Settings
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.modeSwitch} onPress={()=>{navigation.navigate("ThemeSelect")}}>
           <IconF name="sun" size={20} color={colors.text} />
-          <Text style={[styles.menuText, { color: colors.text }]}>
+          <Text allowFontScaling={false}  style={[styles.menuText, { color: colors.text }]}>
            Themes
           </Text>
          
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
   },
   analyticsBtnText: { fontWeight: "600" },
 
-  menuSection: { paddingHorizontal: 20,},
+  menuSection: { paddingHorizontal: 20,marginVertical:10},
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
