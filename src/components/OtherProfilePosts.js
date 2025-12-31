@@ -12,7 +12,9 @@ import {
   Alert,
 } from "react-native";
 import { Card, Avatar } from "react-native-paper";
-import Icon from "@react-native-vector-icons/material-icons";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import SIcon from "react-native-vector-icons/SimpleLineIcons";
+
 import Hyperlink from "react-native-hyperlink";
 import { useTheme } from "../context/ThemeContext";
 import { useDispatch, useSelector } from "react-redux";
@@ -25,6 +27,7 @@ import {
   toggleBookmarkOptimistic,
   clearPosts,
 } from "../store/otherProfilePostSlice";
+
 import { timeAgo } from "../utils/time";
 import { toggleLikeOptimistic } from "../store/feedSlice";
 import FullWidthImage from "./FullWidthImage";
@@ -67,22 +70,20 @@ useEffect(() => {
       <Card style={[styles.postCard, { backgroundColor: colors.surface }]}>
         <Card.Content>
           {/* Header */}
-          <View style={styles.postHeader}>
-            <View style={styles.userInfo}>
+          <View style={styles.headerRow}>
+            
               <Avatar.Image
                 size={42}
                 source={{ uri: item.user.profilePic || "https://i.pravatar.cc/150" }}
               />
-              <View style={styles.userDetails}>
-                <Text style={[styles.userName, { color: colors.text }]}>
+              <View style={styles.userInfo}>
+                <Text allowFontScaling={false}  style={[styles.userName, { color: colors.text }]}>
                   {item.user.name || "Anonymous"}
                 </Text>
-                <Text style={[styles.userTagline, { color: colors.textSecondary }]}>
-                  {item.user.tagline || "New on Ahead"}
-                </Text>
+             
               </View>
-            </View>
-            <Text style={[styles.timeAgo, { color: colors.textSecondary }]}>
+          
+            <Text allowFontScaling={false}  style={[styles.timeAgo, { color: colors.textSecondary }]}>
               {timeAgo(item.createdAt)}
             </Text>
           </View>
@@ -93,7 +94,7 @@ useEffect(() => {
               linkStyle={{ color: colors.link, textDecorationLine: "underline" }}
               onPress={(url) => Linking.openURL(url)}
             >
-              <Text style={[styles.postContent, { color: colors.text }]}>
+              <Text allowFontScaling={false}  style={[styles.postContent, { color: colors.text }]}>
                 {displayText}
               </Text>
             </Hyperlink>
@@ -106,7 +107,7 @@ useEffect(() => {
                 setExpanded((prev) => ({ ...prev, [item.id]: !isExpanded }))
               }
             >
-              <Text style={styles.readMoreText}>
+              <Text allowFontScaling={false}  style={styles.readMoreText}>
                 {isExpanded ? "Read less" : "Read more"}
               </Text>
             </TouchableOpacity>
@@ -117,8 +118,8 @@ useEffect(() => {
 
 
           {/* Stats */}
-          <View style={styles.statsRow}>
-            <View style={styles.actionsRow}>
+          <View style={styles.actionRow}>
+          
               {/* Like */}
               <TouchableOpacity
                 style={styles.actionItem}
@@ -130,43 +131,40 @@ useEffect(() => {
                 }}
               >
                 <Icon
-                  name={item.likedByCurrentUser ? "favorite" : "favorite-border"}
-                  size={22}
+                  name={item.likedByCurrentUser ? "star" : "star-outline"}
+                  size={26}
                   color={item.likedByCurrentUser ? colors.primary : colors.textSecondary}
                 />
-                <Text style={[styles.statsText, { color: colors.text }]}>
+                <Text allowFontScaling={false}  style={[styles.statsText, { color: colors.text }]}>
                   {item.totalLikes || 0}
                 </Text>
               </TouchableOpacity>
 
               {/* Comment */}
               <TouchableOpacity style={styles.actionItem}    onPress={() => navigation.navigate("Comments",{postId:item.id,creatorId:item.userId})}>
-                <Icon name="chat-bubble-outline" size={22} color={colors.textSecondary} />
-                <Text style={[styles.statsText, { color: colors.text }]}>
-                  {item.totalComments || 0}
+              
+                <Text allowFontScaling={false}  style={[styles.statsText, { color: colors.text,fontSize:16 }]}>
+                 Reply
                 </Text>
               </TouchableOpacity>
 
-              {/* Share */}
-              <TouchableOpacity style={styles.actionItem}>
-                <Icon name="share" size={22} color={colors.textSecondary} />
-              </TouchableOpacity>
+      
 
               {/* Bookmark */}
               <TouchableOpacity
-                style={styles.actionItem}
+                style={[styles.actionItem,{marginLeft:'auto'}]}
                 onPress={() => {
                   dispatch(toggleBookmarkOptimistic({ postId: item.id }));
                   dispatch(toggleBookmark(item));
                 }}
               >
-                <Icon
-                  name={item.bookmarkedByCurrentUser ? "bookmark" : "bookmark-outline"}
-                  size={22}
+                <SIcon
+                  name={item.bookmarkedByCurrentUser ? "pin" : "pin"}
+                  size={24}
                   color={item.bookmarkedByCurrentUser ? colors.primary : colors.textSecondary}
                 />
               </TouchableOpacity>
-            </View>
+          
           </View>
         </Card.Content>
       </Card>
@@ -184,7 +182,7 @@ useEffect(() => {
   if (posts.length === 0) {
     return (
       <View style={styles.loader}>
-        <Text style={{ color: colors.text, fontSize: 16 }}>No posts yet</Text>
+        <Text allowFontScaling={false}  style={{ color: colors.text, fontSize: 16 }}>No posts yet</Text>
       </View>
     );
   }
@@ -217,27 +215,54 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
   },
 
-  postHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
-  userInfo: { flexDirection: "row", alignItems: "center" },
-  userDetails: { marginLeft: 10 },
-  userName: { fontFamily: "Inter-Variable", fontWeight: "600", fontSize: 16 },
-  userTagline: { fontFamily: "Inter-Variable", fontWeight: "400", fontSize: 12 },
-  timeAgo: { fontFamily: "Inter-Variable", fontWeight: "400", fontSize: 12 },
-
-  postContent: { marginVertical: 8, fontFamily: "Inter-Variable", fontWeight: "700", fontSize: 15, lineHeight: 21 },
-
-  readMoreText: { color: "#1e88e5", fontFamily: "Inter-Variable", fontWeight: "500", marginTop: 4 },
-
-  postImage: {
-    height: 200,
-    marginVertical: 10,
-    marginLeft: -16,
-    marginRight: -16,
-    borderRadius: 0,
+  
+    /* POST STYLE */
+  postContainer: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
   },
 
-  statsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 14 },
-  actionsRow: { flexDirection: "row", alignItems: "center" },
-  actionItem: { flexDirection: "row", alignItems: "center", marginRight: 18 },
-  statsText: { fontFamily: "Inter-Variable", fontWeight: "500", fontSize: 13, marginLeft: 6 },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  userInfo: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  userName: { fontSize: 15, fontWeight: "600" },
+  userTagline: { fontSize: 12, marginTop: 1 },
+  timeAgo: { fontSize: 12 },
+
+  postContent: {
+    marginTop: 6,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: 600,
+    fontFamily: "Inter",
+  },
+
+  readMore: {
+    fontSize: 14,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+
+  /* ACTION BAR */
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+  },
+  actionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 20,
+  },
+  actionText: {
+    fontSize: 13,
+    marginLeft: 6,
+  },
 });
