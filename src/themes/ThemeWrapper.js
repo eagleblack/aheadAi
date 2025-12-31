@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import Swiper from "react-native-deck-swiper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Ionicons from "@react-native-vector-icons/material-icons";
+import Ionicons from "react-native-vector-icons/MaterialIcons";
 import { useTheme } from "../context/ThemeContext";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchJobs, swipeJob, resetJobs } from "../store/JobSlice";
@@ -23,11 +23,16 @@ import {
 } from "../store/selectionSlice";
 import { useFocusEffect } from "@react-navigation/native";
 import JobCard from "../components/JobCard";
+import RadarScreen from "../components/RadarComponent";
+
+
+
 
 const JobSwiper = () => {
   const { colors: theme, theme: currentTheme, themes } = useTheme();
   const dispatch = useDispatch();
   const swiperRef = useRef(null);
+const lastSwipeDir = useRef(null);
 
   const { jobs, loading } = useSelector((state) => state.jobs);
   const { user: userData } = useSelector((state) => state.user);
@@ -71,53 +76,11 @@ const JobSwiper = () => {
   }, [currentTheme]);
 
   // 🌊 Start waves
-  const startWaves = useCallback(() => {
-    wavesRef.current.forEach((wave, index) => {
-      wave.scale.setValue(1);
-      wave.opacity.setValue(1);
 
-      const anim = Animated.loop(
-        Animated.parallel([
-          Animated.timing(wave.scale, {
-            toValue: 2,
-            duration: 3000,
-            easing: Easing.out(Easing.quad),
-            useNativeDriver: true,
-          }),
-          Animated.timing(wave.opacity, {
-            toValue: 0,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-
-      const timeout = setTimeout(() => anim.start(), index * 600);
-      wave.animation = { anim, timeout };
-    });
-  }, []);
 
   // 🌊 Stop waves
-  const stopWaves = useCallback(() => {
-    wavesRef.current.forEach((wave) => {
-      if (wave.animation) {
-        clearTimeout(wave.animation.timeout);
-        wave.animation.anim.stop();
-        wave.scale.setValue(1);
-        wave.opacity.setValue(1);
-        wave.animation = null;
-      }
-    });
-  }, []);
-
-  // 🫧 Handle tab focus/blur
-  useFocusEffect(
-    useCallback(() => {
-      if (finished || filteredJobs.length === 0) startWaves();
-      return () => stopWaves();
-    }, [finished, startWaves, stopWaves])
-  );
-
+  
+ 
   const handleSwipe = (cardIndex, direction) => {
     const job = filteredJobs[cardIndex];
     if (job) dispatch(swipeJob({ job, direction }));
@@ -130,6 +93,9 @@ const JobSwiper = () => {
 
   // ✨ Handle swiping for LIKE/NOPE opacity
   const handleSwiping = (x) => {
+     if (x > 20) lastSwipeDir.current = "right";
+  else if (x < -20) lastSwipeDir.current = "left";
+  else lastSwipeDir.current = null;
     if (swipeResetTimeout.current) clearTimeout(swipeResetTimeout.current);
 
     if (x > 0) {
@@ -196,93 +162,8 @@ const filteredJobs =
   // 🎯 No jobs
   if (filteredJobs.length === 0 || finished) {
     return (
-      <View style={[styles.container, { backgroundColor: activeColors.background }]}>
-        <SafeAreaView style={styles.centerIcon}>
-            <TouchableOpacity
-        style={styles.filterIcon}
-        onPress={() => setFilterModalVisible(true)}
-      >
-        <Ionicons name="filter-list" size={30} color={theme.primary} />
-      </TouchableOpacity>
-          {wavesRef.current.map((wave, index) => {
-            const waveColors = [theme.primary, theme.secondary, theme.link];
-            return (
-              <Animated.View
-                key={index}
-                style={[
-                  styles.wave,
-                  {
-                    transform: [{ scale: wave.scale }],
-                    opacity: wave.opacity,
-                    borderColor: waveColors[index % waveColors.length],
-                  },
-                ]}
-              />
-            );
-          })}
-          {userData.profilePic ? (
-            <Image source={{ uri: userData.profilePic }} style={styles.avatar} />
-          ) : (
-            <Ionicons name="person-pin" size={100} color={theme.primary} />
-          )}
-
-            <Modal
-        visible={filterModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setFilterModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
-            <Text style={[styles.modalTitle, { color: 'white' }]}>Select Filter</Text>
-            {filterError || !filters?.length ? (
-              <Text style={{ color: theme.text, textAlign: "center", marginVertical: 10 }}>
-                No Filters Available
-              </Text>
-            ) : (
-              <FlatList
-                data={filtersArray}
-                keyExtractor={(item, index) => index.toString()}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.filterItem,
-                      {
-                        backgroundColor:
-                          selectedFilter === item ? theme.primary : "white",
-                      },
-                    ]}
-                    onPress={() => {
-                      setSelectedFilter(item);
-                      setFilterModalVisible(false);
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color:
-                          selectedFilter === item ? theme.background : theme.text,
-                        fontWeight: "600",
-                      }}
-                    >
-                      {item}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              />
-            )}
-
-            <TouchableOpacity
-              style={[styles.closeButton, { borderColor: theme.primary }]}
-              onPress={() => setFilterModalVisible(false)}
-            >
-              <Text style={{ color: theme.primary }}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-        </SafeAreaView>
-      </View>
-    );
+     <RadarScreen />
+    )
   }
 
   return (
@@ -317,10 +198,10 @@ const filteredJobs =
       </Animated.Text>
 
       <SafeAreaView style={styles.swiperWrapper}>
-        <Swiper
+       <Swiper
           ref={swiperRef}
           cards={filteredJobs}
-          renderCard={(job) => <JobCard job={job} />}
+         renderCard={(job) => <JobCard key={job?._id || job?.id} job={job} />}
           onSwipedRight={(i) => handleSwipe(i, "right")}
           onSwipedLeft={(i) => handleSwipe(i, "left")}
           onSwipedAll={handleSwipedAll}
@@ -328,7 +209,10 @@ const filteredJobs =
           cardIndex={0}
           backgroundColor="transparent"
           stackSize={1}
-          animateCardOpacity
+         animateCardOpacity={false}
+containerStyle={{ flex: 1 }}
+cardStyle={{ width: '100%', height: '100%' }}
+keyExtractor={(job)=>job?.id}
           disableTopSwipe
           disableBottomSwipe
         />
@@ -343,9 +227,9 @@ const filteredJobs =
       >
         <View style={styles.modalContainer}>
           <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
-            <Text style={[styles.modalTitle, { color: 'white' }]}>Select Filter</Text>
+            <Text allowFontScaling={false}  style={[styles.modalTitle, { color: 'white' }]}>Select Filter</Text>
             {filterError || !filters?.length ? (
-              <Text style={{ color: theme.text, textAlign: "center", marginVertical: 10 }}>
+              <Text allowFontScaling={false}  style={{ color: theme.text, textAlign: "center", marginVertical: 10 }}>
                 No Filters Available
               </Text>
             ) : (
@@ -366,10 +250,10 @@ const filteredJobs =
                       setFilterModalVisible(false);
                     }}
                   >
-                    <Text
+                    <Text allowFontScaling={false} 
                       style={{
                         color:
-                          selectedFilter === item ? theme.background : 'black',
+                          selectedFilter === item ? theme.primary : 'black',
                         fontWeight: "600",
                       }}
                     >
@@ -384,7 +268,7 @@ const filteredJobs =
               style={[styles.closeButton, { borderColor: theme.primary }]}
               onPress={() => setFilterModalVisible(false)}
             >
-              <Text style={{ color: theme.primary }}>Close</Text>
+              <Text allowFontScaling={false}  style={{ color: theme.primary }}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
