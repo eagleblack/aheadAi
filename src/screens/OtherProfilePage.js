@@ -24,7 +24,17 @@ import firestore,{FieldValue} from "@react-native-firebase/firestore";
 import auth from "@react-native-firebase/auth";
 
 const DUMMY_PROFILE_PIC = "https://randomuser.me/api/portraits/men/75.jpg";
-
+import {
+  fetchInitialMessages,
+  fetchMoreMessages,
+  listenToMessages,
+  listenToChatStatus,
+  sendMessage,
+  acceptChatRequest,
+  startChat,
+  getChatId,
+  markChatAsRead,
+} from "../services/chatService";
 const OtherProfilePage = ({ navigation, route }) => {
   const { colors } = useTheme();
   const dispatch = useDispatch();
@@ -32,6 +42,7 @@ const OtherProfilePage = ({ navigation, route }) => {
   const { profile: userData, loading } = useSelector(
     (state) => state.otherProfile
   );
+
 
   const TABS =
     userData?.userType === "company"
@@ -41,7 +52,7 @@ const OtherProfilePage = ({ navigation, route }) => {
   const [activeTab, setActiveTab] = useState("Posts");
   const [isFollowing, setIsFollowing] = useState(false);
   const currentUser = auth().currentUser;
-
+  const currentUserId =currentUser?.uid;
   // 🔹 Check follow status
   useEffect(() => {
   let unsubscribe;
@@ -166,7 +177,7 @@ const handleFollowToggle = async () => {
           <Icon name="arrow-back" size={26} color={colors.text} />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
+        <Text allowFontScaling={false}  style={[styles.headerTitle, { color: colors.text }]}>
           Profile
         </Text>
 
@@ -184,7 +195,7 @@ const handleFollowToggle = async () => {
                 },
               ]}
             >
-              <Text
+              <Text allowFontScaling={false} 
                 style={{
                   color: isFollowing ? colors.text : "#fff",
                   fontWeight: "600",
@@ -202,6 +213,7 @@ const handleFollowToggle = async () => {
                 otherUserId: uid,
                 otherUserName: userData.name,
                 otherUserAvatar: userData.avatar,
+                chatId:getChatId(currentUserId, uid)
               })
             }
           >
@@ -226,22 +238,22 @@ const handleFollowToggle = async () => {
             style={styles.profilePic}
           />
 
-          <Text style={[styles.name, { color: colors.text }]}>
+          <Text allowFontScaling={false}  style={[styles.name, { color: colors.text }]}>
             {userData.name}
           </Text>
-          <Text style={[styles.username, { color: colors.textSecondary }]}>
+          <Text allowFontScaling={false}  style={[styles.username, { color: colors.textSecondary }]}>
             @{userData.username}
           </Text>
 
           {userData.bio && (
-            <Text style={[styles.bio, { color: colors.text }]}>
+            <Text allowFontScaling={false}  style={[styles.bio, { color: colors.text }]}>
               {userData.bio}
             </Text>
           )}
 
-          {userData.dob && (
-            <Text style={[styles.dob, { color: colors.textSecondary }]}>
-              🎂 DOB: {userData.dob}
+          {userData.value && (
+            <Text allowFontScaling={false}  style={[styles.dob, { color: colors.textSecondary,marginTop:10,fontSize:18,fontWeight:'800' }]}>
+               {userData.value}
             </Text>
           )}
 
@@ -257,7 +269,7 @@ const handleFollowToggle = async () => {
               labelStyle={{ color: colors.primary }}
               icon="logo-linkedin"
             >
-              <Text>View LinkedIn</Text>
+              <Text allowFontScaling={false} >View LinkedIn</Text>
             </Button>
           )}
         </View>
@@ -277,7 +289,7 @@ const handleFollowToggle = async () => {
                 ]}
                 onPress={() => setActiveTab(tab)}
               >
-                <Text
+                <Text allowFontScaling={false} 
                   style={[
                     styles.tabText,
                     {
@@ -308,20 +320,20 @@ const handleFollowToggle = async () => {
                     { backgroundColor: colors.surface },
                   ]}
                 >
-                  <Text style={[styles.cardTitle, { color: colors.text }]}>
+                  <Text allowFontScaling={false}  style={[styles.cardTitle, { color: colors.text }]}>
                     {exp.title}
                   </Text>
-                  <Text
+                  <Text allowFontScaling={false} 
                     style={[styles.cardOrg, { color: colors.textSecondary }]}
                   >
                     {exp.org}
                   </Text>
-                  <Text
+                  <Text allowFontScaling={false} 
                     style={[styles.cardDate, { color: colors.textSecondary }]}
                   >
                     {exp.from} – {exp.to}
                   </Text>
-                  <Text style={[styles.cardDesc, { color: colors.text }]}>
+                  <Text allowFontScaling={false}  style={[styles.cardDesc, { color: colors.text }]}>
                     {exp.desc}
                   </Text>
                 </View>
@@ -338,15 +350,15 @@ const handleFollowToggle = async () => {
                     { backgroundColor: colors.surface },
                   ]}
                 >
-                  <Text style={[styles.cardTitle, { color: colors.text }]}>
+                  <Text allowFontScaling={false}  style={[styles.cardTitle, { color: colors.text }]}>
                     {edu.degree}
                   </Text>
-                  <Text
+                  <Text allowFontScaling={false} 
                     style={[styles.cardOrg, { color: colors.textSecondary }]}
                   >
                     {edu.institution}
                   </Text>
-                  <Text
+                  <Text allowFontScaling={false} 
                     style={[styles.cardDate, { color: colors.textSecondary }]}
                   >
                     {edu.from} – {edu.to}
