@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from "react";
-
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -8,8 +7,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  PermissionsAndroid,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import {
   Button,
@@ -20,153 +19,209 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../context/ThemeContext";
 
-import { pick, types, isCancel } from "@react-native-documents/picker";
-import RNFS from "react-native-fs";
+import { pick, types } from "@react-native-documents/picker";
 import firestore, { FieldValue } from "@react-native-firebase/firestore";
 import auth from "@react-native-firebase/auth";
 import storage from "@react-native-firebase/storage";
 import * as ImagePicker from "react-native-image-picker";
+import RNFS from "react-native-fs";
 
-import {Image} from "react-native";
-// 🔹 Ask for storage permission (Android 13+ safe)
-async function requestStoragePermission() {
-  if (Platform.OS !== "android") return true;
+import LinearGradient from "react-native-linear-gradient";
+import LoadingModal from "../components/LoadingModal";
 
-  try {
-    if (Platform.Version >= 33) {
-      const granted = await PermissionsAndroid.requestMultiple([
-        PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
-        PermissionsAndroid.PERMISSIONS.READ_MEDIA_VIDEO,
-        PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO,
-      ]);
-
-      return (
-        granted["android.permission.READ_MEDIA_IMAGES"] === PermissionsAndroid.RESULTS.GRANTED ||
-        granted["android.permission.READ_MEDIA_VIDEO"] === PermissionsAndroid.RESULTS.GRANTED ||
-        granted["android.permission.READ_MEDIA_AUDIO"] === PermissionsAndroid.RESULTS.GRANTED
-      );
-    } else {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-        {
-          title: "Storage Permission",
-          message: "We need access to your storage to select a resume PDF.",
-          buttonNeutral: "Ask Me Later",
-          buttonNegative: "Cancel",
-          buttonPositive: "OK",
-        }
-      );
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
-    }
-  } catch (err) {
-    console.warn("Permission error:", err);
-    return false;
-  }
-}
-
-const ThemedTextInput = ({ style, ...props }) => {
+const ThemedTextInput = ({ style, error, ...props }) => {
   const { colors } = useTheme();
   return (
     <TextInput
       mode="outlined"
       style={[styles.input, style]}
+      error={error}
       theme={{
         colors: {
           background: colors.surface,
-          text: colors.text,
-          placeholder: colors.textSecondary,
-          primary: colors.primary,
+          text:'black',
+          placeholder: 'black',
+          primary: error ? "red" : colors.primary,
         },
       }}
       {...props}
-      placeholderTextColor={colors.textSecondary}
+      placeholderTextColor={colors.text}
       textColor={colors.text}
     />
   );
 };
 
-const UserDetailsPage = ({ navigation,route }) => {
+
+const UserDetailsPage = ({ navigation }) => {
   const { colors } = useTheme();
-const label = route?.params?.label || null;
-const value = route?.params?.value || null;
 
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
-  const [bio, setBio] = useState(""); // 🔹 New Bio field
-  const [experiences, setExperiences] = useState([]);
-  const [education, setEducation] = useState([]);
+  const [bio, setBio] = useState("");
+  const [certificateFile, setCertificateFile] = useState(null);
   const [loading, setLoading] = useState(false);
-const [certificateImage, setCertificateImage] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [parsingResume,setparsingResume ]=useState(false) 
+    const [experiences, setExperiences] = useState([]);
+  const [education, setEducation] = useState([]); 
+  const [certifications, setCertifications] = useState([]);
 const [uploadingCert, setUploadingCert] = useState(false);
-const pickCertificate = async () => {
- try {
-      const result = await ImagePicker.launchImageLibrary({
-        mediaType: "photo",
-        quality: 0.8,
-      });
-      if (result.didCancel) return;
-      if (result.assets?.length > 0) {
-     setCertificateImage({
-    uri: result.assets[0].uri,
-    name: result.assets[0].fileName || `cert_${Date.now()}.jpg`,
-    type: result.assets[0].type || "image/jpeg",
-  });
-      }
-    } catch (err) {
-      console.error("Profile pic error:", err);
-      Alert.alert("Error", "Could not pick profile picture.");
-    }
+   const uploadResume = async () => {
+      try {
+       
   
-};
-
-
-const uploadCertificate = async (userId) => {
-  if (!certificateImage) return null;
-
-  setUploadingCert(true);
-
-  try {
-    const ref = storage().ref(`certificates/${userId}/mainCertificate.jpg`);
-
-    await ref.putFile(certificateImage.uri);
-
-    const url = await ref.getDownloadURL();
-    return url;
-  } catch (err) {
-    console.error("Certificate upload error:", err);
-    Alert.alert("Upload Failed", "Could not upload certificate.");
-    return null;
-  } finally {
-    setUploadingCert(false);
-  }
-};
-  useEffect(() => {
-  const fetchProfile = async () => {
-    try {
-      const user = auth().currentUser; 
-      if (!user) return;
-
-      const doc = await firestore()
-        .collection("users")
-        .doc(user.uid)
-        .get();
-
-      if (doc.exists) {
-        const data = doc.data();
-
-        if (data.name) setName(data.name);
-        if (data.dob) setDob(data.dob);
-        if (data.bio) setBio(data.bio);
-        if (Array.isArray(data.education)) setEducation(data.education);
-        if (Array.isArray(data.experiences)) setExperiences(data.experiences);
+        setparsingResume(true);
+  
+        const results = await pick({ type: [types.pdf] });
+        if (!results || results.length === 0) return;
+  
+        const file = results[0];
+        const base64Pdf = await RNFS.readFile(file.uri, "base64");
+  
+        const response = await fetch(
+          "https://us-central1-ahead-9fb4c.cloudfunctions.net/resumeApi/resume-analyze",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              file: {
+                data: base64Pdf,
+                name: file.name,
+                mimeType: "application/pdf",
+              },
+            }),
+          }
+        ); 
+  
+        const json = await response.json();
+        if (!json.ok) throw new Error(json.error || "Resume parsing failed");
+  
+        const parsed = json.data;
+  
+        // Autofill data
+      setName(parsed.name || "");
+      setDob(parsed.dob || "");
+      setExperiences(parsed.experience || []);
+      setEducation(parsed.education || []);
+      setCertifications(parsed.certifications || []);
+      } catch (err) {
+     
+          console.error("Resume upload error:", err);
+        
+        
+      } finally {
+        setparsingResume(false);
       }
-    } catch (err) {
-      console.log("Profile load error:", err);
-    }
+    };
+  // 📎 Pick Certificate (Image or PDF)
+  const pickCertificate = async () => {
+    Alert.alert("Upload Certificate", "Choose file type", [
+      {
+        text: "Image",
+        onPress: async () => {
+          const result = await ImagePicker.launchImageLibrary({ mediaType: "photo" });
+          if (result.didCancel || !result.assets?.length) return;
+
+          const file = result.assets[0];
+          setCertificateFile({
+            uri: file.uri,
+            name: file.fileName || `cert_${Date.now()}.jpg`,
+            type: file.type || "image/jpeg",
+          });
+          setErrors(prev => ({ ...prev, certificate: null }));
+        },
+      },
+      {
+        text: "PDF",
+        onPress: async () => {
+          const res = await pick({ type: [types.pdf] });
+          if (!res?.length) return;
+
+          setCertificateFile({
+            uri: res[0].uri,
+            name: res[0].name,
+            type: "application/pdf",
+          });
+          setErrors(prev => ({ ...prev, certificate: null }));
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
-  fetchProfile();
-}, []);
+  // ✅ Validation
+const validate = () => {
+  let e = {};
+
+  if (!name.trim()) e.name = "Full name is required";
+  if (!certificateFile) e.certificate = "Certificate is required";
+
+  // 🎓 Education validation
+  if (!education.length) {
+    e.education = "At least one education entry is required";
+  } else {
+    const invalidEdu = education.find(
+      (edu) =>
+        !edu.degree.trim() || !edu.institution.trim()
+    );
+
+    if (invalidEdu) {
+      e.education = "Please complete all education fields";
+    }
+  }
+
+  setErrors(e);
+  return Object.keys(e).length === 0;
+};
+
+  // 🚀 Submit
+  const handleSubmit = async () => {
+    if (!validate()) return;
+
+    try {
+      setUploading(true);
+
+      const ref = storage().ref(`certificates/${auth().currentUser.uid}_${Date.now()}`);
+      await ref.putFile(certificateFile.uri);
+      const url = await ref.getDownloadURL();
+
+      await firestore().collection("verificationRequests").add({
+        userId: auth().currentUser.uid,
+        name,
+        dob,
+        bio,
+        certificateUrl: url,
+        status: "pending",
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      Alert.alert("Success", "Verification request submitted!");
+      navigation.goBack();
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Error", "Something went wrong.");
+    } finally {
+      setUploading(false);
+    }
+  };
+  // ---------------- Education ----------------
+  const addEducation = () => {
+    setEducation([
+      ...education,
+      { degree: "", institution: "", from: "", to: "" },
+    ]);
+  };
+
+  const updateEducation = (index, field, value) => {
+    const updated = [...education];
+    updated[index][field] = value;
+    setEducation(updated);
+  };
+
+  const removeEducation = (index) => {
+    setEducation(education.filter((_, i) => i !== index));
+  };
   // ---------------- Experience ----------------
   const addExperience = () => {
     setExperiences([
@@ -185,235 +240,118 @@ const uploadCertificate = async (userId) => {
     setExperiences(experiences.filter((_, i) => i !== index));
   };
 
-  // ---------------- Education ----------------
-  const addEducation = () => {
-    setEducation([
-      ...education,
-      { degree: "", institution: "", from: "", to: "" },
-    ]);
-  };
 
-  const updateEducation = (index, field, value) => {
-    const updated = [...education];
-    updated[index][field] = value;
-    setEducation(updated);
-  };
-
-  const removeEducation = (index) => {
-    setEducation(education.filter((_, i) => i !== index));
-  };
-
-  // ---------------- Upload Resume ----------------
-  const uploadResume = async () => {
-    try {
-      const hasPermission = await requestStoragePermission();
-      if (!hasPermission) {
-        Alert.alert("Permission required", "Storage access is needed to pick files.");
-        return;
-      }
-
-      setLoading(true);
-
-      const results = await pick({ type: [types.pdf] });
-      if (!results || results.length === 0) return;
-
-      const file = results[0];
-      const base64Pdf = await RNFS.readFile(file.uri, "base64");
-
-      const response = await fetch(
-        "https://us-central1-ahead-9fb4c.cloudfunctions.net/resumeApi/resume-analyze",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            file: {
-              data: base64Pdf,
-              name: file.name,
-              mimeType: "application/pdf",
-            },
-          }),
-        }
-      );
-
-      const json = await response.json();
-      if (!json.ok) throw new Error(json.error || "Resume parsing failed");
-
-      const parsed = json.data;
-
-      // Autofill data
-      setName(parsed.name || "");
-      setDob(parsed.dob || "");
-      setExperiences(parsed.experience || []);
-      setEducation(parsed.education || []);
-
-    } catch (err) {
-      if (isCancel(err)) {
-        console.log("User cancelled picker");
-      } else {
-        console.error("Resume upload error:", err);
-        Alert.alert("Error", err.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ---------------- Save to Firestore ----------------
- const saveDetails = async () => {
-  try {
-    // ✅ HARD VALIDATION
-    if (!name.trim()) {
-      Alert.alert("Validation Error", "Full name is required.");
-      return;
-    }
-
-    if (!education.length || !education[0].degree || !education[0].institution) {
-      Alert.alert(
-        "Education Required",
-        "Please add at least one education record with Degree and Institution."
-      );
-      return;
-    }
-
-    const user = auth().currentUser;
-    if (!user) {
-      Alert.alert("Error", "No user logged in.");
-      return;
-    }
-  const certificateUrl = await uploadCertificate(user.uid);
-    const userDoc = await firestore().collection("users").doc(user.uid).get();
-
-    const username =
-      userDoc.exists && userDoc.data().username
-        ? userDoc.data().username
-        : name.trim().replace(/\s+/g, "-").toLowerCase() + "-" + Math.floor(Math.random() * 10000);
-
-    const userData = {
-  name,
-  dob,
-  bio,
-  education,
-  experiences,
-  username,
-  hasChecked: true,
-  verificationRequested: true,
-  verificationRequestedAt: FieldValue.serverTimestamp(),
+  const addCertification = () => {
+  setCertifications([
+    ...certifications,
+    {
+      courseName: "",
+      certificateNumber: "",
+      issueDate: "",
+      issuePlace: "",
+    },
+  ]);
 };
-if (certificateUrl) {
-  userData.mainCertificate = certificateUrl;
-}
 
-    // ✅ Only write label/value if provided
-    if (label !== null) userData.label = label;
-    if (value !== null) userData.value = value;
-
-    await firestore()
-      .collection("users")
-      .doc(user.uid)
-      .set(userData, { merge: true });
-
-    Alert.alert("✅ Request Sent", "Verification request submitted successfully.");
-    navigation.navigate("PendingVerification");
-  } catch (err) {
-    console.error("Firestore save error:", err);
-    Alert.alert("Error", "Could not submit verification request.");
-  }
+const updateCertification = (index, field, value) => {
+  const updated = [...certifications];
+  updated[index][field] = value;
+  setCertifications(updated);
 };
-  // ---------------- Skip Button ----------------
-  const skip = async () => {
-    try {
-      const user = auth().currentUser;
-      if (!user) {
-        Alert.alert("Error", "No user logged in.");
-        return;
-      }
 
-      await firestore().collection("users").doc(user.uid).set(
-        { hasChecked: true,label,value },
-        { merge: true }
-      );
-
-      navigation.navigate("MainApp");
-    } catch (err) {
-      console.error("Skip error:", err);
-      Alert.alert("Error", "Could not update user data.");
-    }
-  };
-
+const removeCertification = (index) => {
+  setCertifications(certifications.filter((_, i) => i !== index));
+};
   return (
-    <SafeAreaView
-      edges={["top",'bottom']}
-      style={{ flex: 1, backgroundColor: colors.background }}
-    >
-      {/* Top-right Skip button */}
-      
-
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
       >
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContainer,
-            { backgroundColor: colors.background, paddingBottom: 50 },
-          ]}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Page Title */}
-          <Text style={[styles.title, { color: colors.text }]}>
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+       <Text style={[styles.title, { color: colors.text }]}>
             Request Verification
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             Fill in your personal details and upload your resume for auto-fill
           </Text>
-  
-
-     <Button
-            mode="outlined"
-            onPress={uploadResume}
-            loading={loading}
-            disabled={loading}
-            style={[styles.uploadBtn, { borderColor: colors.secondary }]}
+     <TouchableOpacity
+        
+             onPress={uploadResume}
+          
+            disabled={parsingResume}
+            style={[styles.uploadBtn, { borderColor: colors.primary }]}
             labelStyle={{
-              color: colors.secondary,
+              color: colors.primary,
               fontWeight: "600",
             }}
           >
-            📄 Upload Resume
-          </Button>
-          {/* Personal Info */}
+             <LinearGradient colors={["#232323", "#000000"]} style={styles.button}>
+  {!parsingResume ?<Text style={styles.buttonText}>
+            Uplaod Resume To Autofill     </Text>: <ActivityIndicator size={'small'} />}
+        
+             </LinearGradient>
+         
+          </TouchableOpacity>
+
+           <View style={styles.orWrapper}>
+                        <View style={styles.line} />
+                        <Text style={styles.orText}>Or</Text>
+                        <View style={styles.line} />
+                      </View>
           <Card style={[styles.card, { backgroundColor: colors.surface }]}>
             <Card.Content>
               <ThemedTextInput
-                label="Full Name"
+                label="Full Name *"
                 value={name}
-                onChangeText={setName}
+                onChangeText={(t) => {
+                  setName(t);
+                  if (t.trim()) setErrors(p => ({ ...p, name: null }));
+                }}
+                error={!!errors.name}
               />
-              <ThemedTextInput
-                label="Date of Birth"
-                placeholder="DD/MM/YYYY"
-                value={dob}
-                onChangeText={setDob}
-              />
+              {errors.name && <Text style={styles.error}>{errors.name}</Text>}
+
+              <ThemedTextInput label="Date of Birth" value={dob} onChangeText={setDob} />
+
               <ThemedTextInput
                 label="Bio"
-                placeholder="Write about yourself (max 200 characters)"
-                value={bio}
-                onChangeText={(text) =>
-                  text.length <= 200 ? setBio(text) : null
-                }
-                style={styles.textArea}
                 multiline
                 numberOfLines={4}
+                style={styles.textArea}
+                value={bio}
+                onChangeText={(t) => t.length <= 200 && setBio(t)}
               />
             </Card.Content>
           </Card>
 
-          {/* Education Section */}
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Education
+          <Button
+            mode="outlined"
+            onPress={pickCertificate}
+            style={[
+              styles.uploadBtn,
+              { borderColor: errors.certificate ? "red" : colors.primary },
+            ]}
+            labelStyle={{
+              color: errors.certificate ? "red" : colors.primary,
+              fontWeight: "600",
+            }}
+          >
+           Upload Heighest Education Certificate *
+          </Button>
+
+          {certificateFile && (
+            <Text style={{ marginBottom: 10, color: colors.textSecondary }}>
+              Selected: {certificateFile.name}
+            </Text>
+          )}
+          {errors.certificate && <Text style={styles.error}>{errors.certificate}</Text>}
+  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Education*
           </Text>
+          {errors.education && (
+  <Text style={styles.error}>{errors.education}</Text>
+)}
           {education.map((edu, index) => (
          <Card
   key={index}
@@ -472,7 +410,7 @@ if (certificateUrl) {
               </Card.Content>
             </Card>
           ))}
-          <Button
+              <Button
             mode="outlined"
             onPress={addEducation}
             style={[styles.addBtn, { borderColor: colors.primary }]}
@@ -487,16 +425,23 @@ if (certificateUrl) {
           </Text>
           {experiences.map((exp, index) => (
             <Card key={index} style={[styles.card, { backgroundColor: colors.surface }]}>
-              <Card.Title
-                title={exp.title || "New Experience"}
+          
+ <Card.Title
+    title={exp.title || "New Experience"}
+
+    titleStyle={{ color: colors.primary, fontWeight: "600" }} // Title color
                 subtitle={
                   exp.org ? `${exp.org} | ${exp.from} - ${exp.to}` : "Add details"
                 }
-                right={() => (
-                  <IconButton icon="delete" onPress={() => removeExperience(index)} />
-                )}
-              />
-
+    subtitleStyle={{ color: colors.text }} // Subtitle color
+    right={() => (
+      <IconButton
+        icon="delete"
+        iconColor={colors.error} // Icon color
+        onPress={() => removeExperience(index)}
+      />
+    )}
+  />
               <Card.Content>
                 <ThemedTextInput
                   label="Title (e.g. Software Engineer)"
@@ -536,7 +481,7 @@ if (certificateUrl) {
               </Card.Content>
             </Card>
           ))}
-          <Button
+           <Button
             mode="outlined"
             onPress={addExperience}
             style={[styles.addBtn, { borderColor: colors.primary }]}
@@ -544,55 +489,144 @@ if (certificateUrl) {
           >
             + Add Experience
           </Button>
-{certificateImage && (
-  <Card style={[styles.card, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+  Certifications
+</Text>
+
+{certifications.map((cert, index) => (
+  <Card key={index} style={[styles.card, { backgroundColor: colors.surface }]}>
+    <Card.Title
+            title={cert.courseName || "New Certification"}
+
+
+    titleStyle={{ color: colors.primary, fontWeight: "600" }} // Title color
+                 subtitle={
+        cert.issuePlace
+          ? `${cert.issuePlace} | ${cert.issueDate}`
+          : "Add details"
+      }
+    subtitleStyle={{ color: colors.text }} // Subtitle color
+   
+      right={() => (
+        <IconButton
+          icon="delete"
+          iconColor={colors.error}
+          onPress={() => removeCertification(index)}
+        />
+      )}
+    />
+
     <Card.Content>
-      <Text style={{ color: colors.textSecondary, marginBottom: 8 }}>
-        Selected Certificate
-      </Text>
-      <Image
-        source={{ uri: certificateImage.uri }}
-        style={{ height: 180, borderRadius: 12 }}
-        resizeMode="cover"
+      <ThemedTextInput
+        label="Course / Certification Name"
+        value={cert.courseName}
+        onChangeText={(text) =>
+          updateCertification(index, "courseName", text)
+        }
+      />
+
+      <ThemedTextInput
+        label="Certificate Number"
+        value={cert.certificateNumber}
+        onChangeText={(text) =>
+          updateCertification(index, "certificateNumber", text)
+        }
+      />
+
+      <ThemedTextInput
+        label="Date of Issue"
+        placeholder="MM/YYYY"
+        value={cert.issueDate}
+        onChangeText={(text) =>
+          updateCertification(index, "issueDate", text)
+        }
+      />
+
+      <ThemedTextInput
+        label="Place of Issue"
+        placeholder="Google / Coursera / AWS"
+        value={cert.issuePlace}
+        onChangeText={(text) =>
+          updateCertification(index, "issuePlace", text)
+        }
       />
     </Card.Content>
   </Card>
-)}
-          {/* Upload Resume */}
-       <Button
+))}
+
+<Button
   mode="outlined"
-  onPress={()=>{pickCertificate()}}
-  style={[styles.uploadBtn, { borderColor: colors.secondary }]}
-  labelStyle={{ color: colors.secondary, fontWeight: "600" }}
+  onPress={addCertification}
+  style={[styles.addBtn, { borderColor: colors.primary }]}
+  labelStyle={{ color: colors.primary, fontWeight: "600" }}
 >
-  🏆 Upload Certificate
+  + Add Certification
 </Button>
 
-          {/* Save Button */}
-          <Button
-  mode="contained"
-  onPress={saveDetails}
-  disabled={uploadingCert}
-  loading={uploadingCert}
-  style={[styles.saveButton, { backgroundColor: colors.primary }]}
->
-  Request Verification
-</Button>
+       
+
+          <LoadingModal visible={parsingResume} text="Processing Resume Please Wait..." />
         </ScrollView>
+           <TouchableOpacity onPress={handleSubmit} disabled={uploading} style={{width:'80%',position:'fixed',bottom:10,alignSelf:'center'}}>
+            <LinearGradient colors={["#F58AC9", "#3B82F6"]} style={styles.button}>
+              <Text style={styles.buttonText}>
+                {uploading ? "Please wait..." : "Request Verification"}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
+export default UserDetailsPage;
+
 const styles = StyleSheet.create({
   scrollContainer: { flexGrow: 1, padding: 20, paddingBottom: 40 },
-  topRightButton: {
-    position: "absolute",
-    top: 10,
-    right: 20,
-    zIndex: 10,
+  title: { fontSize: 28, fontWeight: "800", marginBottom: 8, textAlign: "center" },
+  subtitle: { fontSize: 16, marginBottom: 24, textAlign: "center" },
+  card: { borderRadius: 16, marginBottom: 20, elevation: 3 },
+  input: { marginBottom: 16 },
+  textArea: { minHeight: 100, textAlignVertical: "top" },
+  uploadBtn: { marginBottom: 20, borderRadius: 12, paddingVertical: 6 },
+  button: {
+    height: 46,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10, 
+    paddingVertical: 6
   },
-  title: {
+  buttonText: { color: "#fff", fontSize: 18, fontWeight: "700" },
+  error: { color: "red", marginBottom: 10, marginTop: -10, fontSize: 13 },
+  
+  orWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 20,
+    marginBottom:30
+  },
+
+  line: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#aecef7",
+  },
+
+  orText: {
+    marginHorizontal: 12,
+    fontSize: 22,
+    fontWeight: "600",
+    color: "#000000",
+  },
+  addBtn: { marginBottom: 20, borderRadius: 12, paddingVertical: 6 },
+  uploadBtn: { marginBottom: 32, borderRadius: 12, paddingVertical: 6 },
+  saveButton: {
+    borderRadius: 16,
+    elevation: 4,
+    paddingVertical: 10,
+  },
+    title: {
     fontSize: 28,
     fontWeight: "800",
     marginBottom: 8,
@@ -604,28 +638,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 22,
   },
-  sectionTitle: {
+    sectionTitle: {
     fontSize: 20,
     fontWeight: "700",
     marginTop: 28,
     marginBottom: 12,
-  },
-  card: {
-    borderRadius: 16,
-    marginBottom: 20,
-    elevation: 3,
-  },
-  input: { marginBottom: 16 },
-  row: { flexDirection: "row", justifyContent: "space-between" },
-  halfInput: { flex: 1, marginRight: 8 },
-  textArea: { minHeight: 100, textAlignVertical: "top" },
-  addBtn: { marginBottom: 20, borderRadius: 12, paddingVertical: 6 },
-  uploadBtn: { marginBottom: 32, borderRadius: 12, paddingVertical: 6 },
-  saveButton: {
-    borderRadius: 16,
-    elevation: 4,
-    paddingVertical: 10,
+    marginLeft:10
   },
 });
-
-export default UserDetailsPage;
