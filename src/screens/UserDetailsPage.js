@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import {
   Button,
@@ -52,9 +53,10 @@ const ThemedTextInput = ({ style, error, ...props }) => {
 };
 
 
-const UserDetailsPage = ({ navigation }) => {
+const UserDetailsPage = ({ navigation,route }) => {
   const { colors } = useTheme();
-
+const label = route?.params?.label || null;
+const value = route?.params?.value || null;
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
   const [bio, setBio] = useState("");
@@ -67,53 +69,64 @@ const UserDetailsPage = ({ navigation }) => {
   const [education, setEducation] = useState([]); 
   const [certifications, setCertifications] = useState([]);
 const [uploadingCert, setUploadingCert] = useState(false);
-   const uploadResume = async () => {
-      try {
-       
-  
-        setparsingResume(true);
-  
-        const results = await pick({ type: [types.pdf] });
-        if (!results || results.length === 0) return;
-  
-        const file = results[0];
-        const base64Pdf = await RNFS.readFile(file.uri, "base64");
-  
-        const response = await fetch(
-          "https://us-central1-ahead-9fb4c.cloudfunctions.net/resumeApi/resume-analyze",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              file: {
-                data: base64Pdf,
-                name: file.name,
-                mimeType: "application/pdf",
-              },
-            }),
-          }
-        ); 
-  
-        const json = await response.json();
-        if (!json.ok) throw new Error(json.error || "Resume parsing failed");
-  
-        const parsed = json.data;
-  
-        // Autofill data
-      setName(parsed.name || "");
-      setDob(parsed.dob || "");
-      setExperiences(parsed.experience || []);
-      setEducation(parsed.education || []);
-      setCertifications(parsed.certifications || []);
-      } catch (err) {
-     
-          console.error("Resume upload error:", err);
-        
-        
-      } finally {
-        setparsingResume(false);
+
+const uploadResume = async () => {
+  try {
+   
+    const results = await pick({ type: [types.pdf] });
+    if (!results?.length) return;
+ setparsingResume(true);
+      await new Promise(resolve => setTimeout(resolve, 0));
+    const file = results[0];
+
+    // Prefer fileCopyUri on iOS
+    let uri = file.fileCopyUri || file.uri;
+    if (!uri) throw new Error("No file URI");
+
+    // Decode %20 etc.
+    uri = decodeURI(uri);
+
+    // Remove file:// for RNFS
+    const path = uri.replace("file://", "");
+
+    console.log("READING PATH:", path);
+
+    const base64Pdf = await RNFS.readFile(path, "base64");
+    if (!base64Pdf) throw new Error("Empty file");
+
+    const response = await fetch(
+      "https://us-central1-ahead-9fb4c.cloudfunctions.net/resumeApi/resume-analyze",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file: {
+            data: base64Pdf,
+            name: file.name || "resume.pdf",
+            mimeType: "application/pdf",
+          },
+        }),
       }
-    };
+    );
+
+    const json = await response.json();
+    if (!json.ok) throw new Error(json.error);
+
+    const parsed = json.data || {};
+
+    setName(parsed.name || "");
+    setDob(parsed.dob || "");
+    setExperiences(parsed.experience || []);
+    setEducation(parsed.education || []);
+    setCertifications(parsed.certifications || []);
+
+  } catch (err) {
+    console.error("Resume upload error:", err);
+  } finally {
+    setparsingResume(false);
+  }
+};
+
   // 📎 Pick Certificate (Image or PDF)
   const pickCertificate = async () => {
     Alert.alert("Upload Certificate", "Choose file type", [
@@ -133,19 +146,41 @@ const [uploadingCert, setUploadingCert] = useState(false);
         },
       },
       {
-        text: "PDF",
-        onPress: async () => {
-          const res = await pick({ type: [types.pdf] });
-          if (!res?.length) return;
+  text: "PDF",
+  onPress: async () => {
+    try {
+      const res = await pick({ type: [types.pdf] });
+      if (!res?.length) return;
 
-          setCertificateFile({
-            uri: res[0].uri,
-            name: res[0].name,
-            type: "application/pdf",
-          });
-          setErrors(prev => ({ ...prev, certificate: null }));
-        },
-      },
+      const file = res[0];
+
+      // iOS fix → use fileCopyUri if available
+      let uri = file.fileCopyUri || file.uri;
+      if (!uri) throw new Error("No file URI");
+
+      uri = decodeURI(uri);
+
+      // Remove file:// for RNFS
+      const path = uri.replace("file://", "");
+
+      const newPath = `${RNFS.DocumentDirectoryPath}/${Date.now()}_${file.name}`;
+
+      // Copy into app directory
+      await RNFS.copyFile(path, newPath);
+
+      setCertificateFile({
+        uri: `file://${newPath}`, // IMPORTANT
+        name: file.name || `cert_${Date.now()}.pdf`,
+        type: "application/pdf",
+      });
+
+      setErrors(prev => ({ ...prev, certificate: null }));
+    } catch (e) {
+      console.log("PDF Pick Error:", e);
+      Alert.alert("Error", "Unable to pick PDF");
+    }
+  },
+},
       { text: "Cancel", style: "cancel" },
     ]);
   };
@@ -173,31 +208,83 @@ const validate = () => {
 
   setErrors(e);
   return Object.keys(e).length === 0;
-};
+}; 
+  useEffect(() => {
+   
+  const fetchProfile = async () => {
+    try {
+      const user = auth().currentUser; 
+      if (!user) return;
 
+      const doc = await firestore()
+        .collection("users")
+        .doc(user.uid)
+        .get();
+
+      if (doc.exists) {
+        const data = doc.data();
+
+        if (data.name) setName(data.name);
+        if (data.dob) setDob(data.dob);
+        if (data.bio) setBio(data.bio);
+        if (Array.isArray(data.education)) setEducation(data.education);
+        if (Array.isArray(data.experiences)) setExperiences(data.experiences);
+        if (Array.isArray(data.certifications)) {
+  setCertifications(data.certifications);
+}
+
+      }
+    } catch (err) {
+      console.log("Profile load error:", err);
+    }
+  };
+
+  fetchProfile();
+}, []);
   // 🚀 Submit
   const handleSubmit = async () => {
     if (!validate()) return;
 
     try {
       setUploading(true);
-
+ const user = auth().currentUser;
       const ref = storage().ref(`certificates/${auth().currentUser.uid}_${Date.now()}`);
       await ref.putFile(certificateFile.uri);
       const url = await ref.getDownloadURL();
+    const userDoc = await firestore().collection("users").doc(user.uid).get();
 
-      await firestore().collection("verificationRequests").add({
-        userId: auth().currentUser.uid,
-        name,
-        dob,
-        bio,
-        certificateUrl: url,
-        status: "pending",
-        createdAt: FieldValue.serverTimestamp(),
-      });
+ const username =
+      userDoc.exists && userDoc.data().username
+        ? userDoc.data().username
+        : name.trim().replace(/\s+/g, "-").toLowerCase() + "-" + Math.floor(Math.random() * 10000);
 
-      Alert.alert("Success", "Verification request submitted!");
-      navigation.goBack();
+    const userData = {
+  name,
+  dob,
+  bio,
+  education,
+  experiences,
+   certifications, // ✅ ADD THIS
+  username,
+  hasChecked: true,
+  verificationRequested: true,
+  verificationRequestedAt: FieldValue.serverTimestamp(),
+};
+if (url) {
+  userData.mainCertificate = url;
+}
+
+    // ✅ Only write label/value if provided
+    if (label !== null) userData.label = label;
+    if (value !== null) userData.value = value;
+
+    await firestore()
+      .collection("users")
+      .doc(user.uid)
+      .set(userData, { merge: true });
+
+    Alert.alert("✅ Request Sent", "Verification request submitted successfully.");
+    navigation.navigate("PendingVerification");
     } catch (err) {
       console.error(err);
       Alert.alert("Error", "Something went wrong.");
@@ -269,7 +356,7 @@ const removeCertification = (index) => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView contentContainerStyle={styles.scrollContainer}>
-       <Text style={[styles.title, { color: colors.text }]}>
+       <Text style={[styles.title, { color: colors.text }]} allowFontScaling={false}>
             Request Verification
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
@@ -336,12 +423,13 @@ const removeCertification = (index) => {
               color: errors.certificate ? "red" : colors.primary,
               fontWeight: "600",
             }}
+            allowFontScaling={false}
           >
-           Upload Heighest Education Certificate *
+           Upload Education Certificate *
           </Button>
 
           {certificateFile && (
-            <Text style={{ marginBottom: 10, color: colors.textSecondary }}>
+            <Text style={{ marginBottom: 10, color: colors.textSecondary }} allowFontScaling={false}>
               Selected: {certificateFile.name}
             </Text>
           )}
@@ -350,7 +438,7 @@ const removeCertification = (index) => {
             Education*
           </Text>
           {errors.education && (
-  <Text style={styles.error}>{errors.education}</Text>
+  <Text style={styles.error} >{errors.education}</Text>
 )}
           {education.map((edu, index) => (
          <Card
@@ -565,22 +653,52 @@ const removeCertification = (index) => {
 
        
 
-          <LoadingModal visible={parsingResume} text="Processing Resume Please Wait..." />
+        
         </ScrollView>
-           <TouchableOpacity onPress={handleSubmit} disabled={uploading} style={{width:'80%',position:'fixed',bottom:10,alignSelf:'center'}}>
+        
+           <TouchableOpacity onPress={handleSubmit} disabled={uploading} style={{width:'80%',position:'absolute',bottom:10,alignSelf:'center'}}>
             <LinearGradient colors={["#F58AC9", "#3B82F6"]} style={styles.button}>
               <Text style={styles.buttonText}>
                 {uploading ? "Please wait..." : "Request Verification"}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
+            <View style={{
+  flex: 1,
+  backgroundColor: "rgba(0,0,0,0.5)",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 9999,
+  elevation: 9999
+}}>
+ <Modal visible={parsingResume} transparent animationType="fade">
+              <View style={{
+                flex: 1,
+                backgroundColor: "rgba(0,0,0,0.5)",
+                justifyContent: "center", 
+                alignItems: "center"
+              }}>
+                <View style={{
+                  backgroundColor: "#fff",
+                  padding: 30,
+                  borderRadius: 12,
+                  alignItems: "center"
+                }}>
+                  <ActivityIndicator size="large" />
+                  <Text style={{ marginTop: 10 }}>{ "Processing..."}</Text>
+                </View>
+              </View>
+            </Modal>
+</View>
       </KeyboardAvoidingView>
+    
+       
     </SafeAreaView>
   );
 };
 
 export default UserDetailsPage;
-
+//<LoadingModal visible={parsingResume} text="Processing Resume Please Wait..." />
 const styles = StyleSheet.create({
   scrollContainer: { flexGrow: 1, padding: 20, paddingBottom: 40 },
   title: { fontSize: 28, fontWeight: "800", marginBottom: 8, textAlign: "center" },
@@ -590,14 +708,14 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 100, textAlignVertical: "top" },
   uploadBtn: { marginBottom: 20, borderRadius: 12, paddingVertical: 6 },
   button: {
-    height: 46,
+    height:60,
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 10, 
-    paddingVertical: 6
+    paddingBottom:12,
+    
   },
-  buttonText: { color: "#fff", fontSize: 18, fontWeight: "700" },
+  buttonText: { color: "#fff", fontSize: 18, fontWeight: "700",textAlign:'center'},
   error: { color: "red", marginBottom: 10, marginTop: -10, fontSize: 13 },
   
   orWrapper: {
@@ -624,7 +742,8 @@ const styles = StyleSheet.create({
   saveButton: {
     borderRadius: 16,
     elevation: 4,
-    paddingVertical: 10,
+    paddingVertical: 20,
+    height:40,
   },
     title: {
     fontSize: 28,
